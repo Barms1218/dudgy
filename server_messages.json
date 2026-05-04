@@ -1,0 +1,20 @@
+{
+	"type": "room_joined",
+	"payload": {
+		"room_code": ,
+		"you_player_id": "uuid",
+		"players": [
+			{ "player_id": "uuid", "display_name": "Rowan", "ready": false }
+		]
+	}
+}
+
+{
+	"type": "player_joined",
+	"payload": {
+		"player_id": "uuid",
+		"display_name": "Sam"
+	}
+}
+
+
