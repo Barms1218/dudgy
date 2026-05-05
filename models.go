@@ -43,9 +43,13 @@ type Direction struct {
 }
 
 type Player struct {
-	PlayerID       uuid.UUID `json:"player_id"`
-	PlayerPosition Position  `json:"player_position"`
-	Health         int32     `json:"health"`
+	PlayerID uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+}
+
+type GamePlayer struct {
+	PlayerPosition Position `json:"pos"`
+	Health         int32    `json:"hp"`
 }
 
 type RoomPlayer struct {
@@ -55,9 +59,9 @@ type RoomPlayer struct {
 }
 
 type Enemy struct {
-	EnemyID       uuid.UUID `json:"enemy_id"`
-	EnemyPosition Position  `json:"enemy_position"`
-	Health        int32     `json:"health"`
+	EnemyID       uuid.UUID `json:"id"`
+	EnemyPosition Position  `json:"pos"`
+	Health        int32     `json:"hp"`
 }
 
 type Map struct {
@@ -76,9 +80,9 @@ type CreatePlayerResponse struct {
 }
 
 type JoinRoomPayload struct {
-	PlayerID    uuid.UUID `json:"player_id"`
-	RoomCode    uuid.UUID `json:"room_code"`
-	DisplayName string    `json:"display_name"`
+	PlayerID    uuid.UUID `json:"id"`
+	RoomCode    uuid.UUID `json:"code"`
+	DisplayName string    `json:"name"`
 }
 
 type RoomJoinResponse struct {
