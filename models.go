@@ -58,18 +58,6 @@ type RoomPlayer struct {
 	Ready       bool      `json:"ready"`
 }
 
-type Enemy struct {
-	EnemyID       uuid.UUID `json:"id"`
-	EnemyPosition Position  `json:"pos"`
-	Health        int32     `json:"hp"`
-}
-
-type Map struct {
-	Width  int32  `json:"map_width"`
-	Height int32  `json:"map_height"`
-	Tiles  []int8 `json:"tiles"`
-}
-
 type CreatePlayerReq struct {
 	Name string `json:"name"`
 }
@@ -77,64 +65,6 @@ type CreatePlayerReq struct {
 type CreatePlayerResponse struct {
 	PlayerID uuid.UUID `json:"player_id"`
 	Name     string    `json:"name"`
-}
-
-type JoinRoomPayload struct {
-	PlayerID    uuid.UUID `json:"id"`
-	RoomCode    uuid.UUID `json:"code"`
-	DisplayName string    `json:"name"`
-}
-
-type RoomJoinResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
-type PlayerInputPayload struct {
-	Direction Direction `json:"direction"`
-	Action    string    `json:"action"`
-}
-
-type PlayerInputResponse struct {
-}
-
-type DisconnectPaylaod struct {
-	Save bool `json:"save"`
-}
-
-type RoomJoinedPayload struct {
-	RoomCode     uuid.UUID    `json:"room_code"`
-	YourPlayerID uuid.UUID    `json:"your_player_id"`
-	Players      []RoomPlayer `json:"players"`
-}
-
-type SpawnPositions struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	Position Position  `json:"position"`
-}
-
-type RunStartedPayload struct {
-	Seed           int32            `json:"seed"`
-	Map            map[string]any   `json:"map"`
-	SpawnPositions []SpawnPositions `json:"spawn_positions"`
-}
-
-type WorldStatePayload struct {
-	Tick    int32    `json:"tick"`
-	Players []Player `json:"players"`
-	Enemies []Enemy  `json:"enemies"`
-}
-
-type PlayerDisconnectedPayload struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	RunSaved bool      `json:"run_saved"`
-}
-
-type RunResumedPayload struct {
-	Seed    int32    `json:"seed"`
-	Map     Map      `json:"map"`
-	Players []Player `json:"players"`
-	Enemies []Enemy  `json:"enemies"`
 }
 
 type GenericError struct {

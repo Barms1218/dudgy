@@ -90,7 +90,7 @@ func (rm *RoomManager) JoinOrCreateRoom(roomCode string, client *RoomPlayer) (*R
 		room = &Room{
 			Code:    newCode,
 			Players: make(map[uuid.UUID]*RoomPlayer, 0),
-			ctx:     context.Context,
+			ctx:     context.WithTimeout(),
 			state:   Exploration,
 		}
 		rm.rooms[newCode] = room
