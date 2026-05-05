@@ -56,3 +56,27 @@ func generateRoomCode() string {
 
 	return string(b)
 }
+
+func GenerateMap(width, height, seed int32) (Map, Position) {
+	tiles := make([]int8, width*height)
+	for i := range tiles {
+		tiles[i] = 1
+	}
+
+	r := rand.New(rand.NewSource(int64(seed)))
+	x, y := int(width/2), int(height/2)
+	steps := int(width * height / 3)
+	dirs := [][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}
+
+	for i := 0; i < steps; i++ {
+		tiles[y*int(width)+x] = 0
+		d := dirs[r.Intn(4)]
+		nx, ny := x+d[0], y+d[1]
+		if nx > 0 && nx < int(width)-1 && ny > 0 && ny < int(height)-1 {
+			x, y = nx, ny
+		}
+	}
+
+	spawn := Position{X: float32(width / 2), Y: float32(height / 2)}
+	return Map{Width: width, Height: height, Tiles: tiles}, spawn
+}
