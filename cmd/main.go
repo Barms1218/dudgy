@@ -24,7 +24,7 @@ type App struct {
 
 func NewApp() *App {
 	return &App{
-		rm:  r.NewRoomManager(sendToClient),
+		rm:  r.NewRoomManager(),
 		hub: n.NewHub(),
 	}
 }

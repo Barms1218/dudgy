@@ -36,10 +36,9 @@ type RoomManager struct {
 	send        func(ids []uuid.UUID, msgType string, data json.RawMessage)
 }
 
-func NewRoomManager(s func(ids []uuid.UUID, msgType string, data json.RawMessage)) *RoomManager {
+func NewRoomManager() *RoomManager {
 	return &RoomManager{
 		rooms: make(map[string]*Room),
-		send:  s,
 	}
 }
 
