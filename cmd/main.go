@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	l "github.com/Barms1218/dudgy/internal/lobbies"
 	n "github.com/Barms1218/dudgy/internal/networking"
-	r "github.com/Barms1218/dudgy/internal/rooms"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,14 +18,14 @@ import (
 )
 
 type App struct {
-	rm      *r.RoomManager
+	rm      *l.LobbyManager
 	hub     *n.Hub
 	funcMap map[string]func(*n.Client, json.RawMessage) error
 }
 
-func NewApp() *App {
+func NewApp(manager *l.LobbyManager) *App {
 	return &App{
-		rm:  r.NewRoomManager(),
+		rm:  manager,
 		hub: n.NewHub(),
 	}
 }
@@ -96,12 +97,34 @@ func (a *App) sendToClient(id uuid.UUID, msgType string, data json.RawMessage) e
 	return a.hub.Clients[id].Conn.Write(ctx, websocket.MessageText, out)
 }
 
+func (a *App) broadcast(roomCode, msgType string, data json.RawMessage) {
+	envelope := n.Envelope{
+		Type:    n.EnvelopeType(msgType),
+		Payload: json.RawMessage(data),
+	}
+	out, err := json.Marshal(envelope)
+	if err != nil {
+		return
+	}
+
+	room, exists := a.rm.GetLobby(roomCode)
+	if !exists {
+		return
+	}
+
+	ids := make([]uuid.UUID, 0, len(room.Players))
+	for _, player := range room.Players {
+		ids = append(ids, player.PlayerID)
+	}
+	a.hub.Broadcast <- n.BroadCastMessage{Recipients: ids, Payload: out}
+}
+
 func main() {
 	bgCtx := context.Background()
 	ctx, stop := signal.NotifyContext(bgCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	a := NewApp()
+	a := NewApp(l.NewLobbyManager(bgCtx))
 
 	srv := &http.Server{
 		Addr:    ":8080",
@@ -115,6 +138,9 @@ func main() {
 	}()
 
 	go a.hub.Run(ctx)
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
 	<-ctx.Done()
 	log.Println("Shutting down, draining connections...")
