@@ -63,8 +63,9 @@ type WorldStatePayload struct {
 }
 
 type PlayerDisconnectedPayload struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	RunSaved bool      `json:"run_saved"`
+	PlayerID    uuid.UUID `json:"id"`
+	DisplayName string    `json:"name"`
+	RunSaved    bool      `json:"run_saved"`
 }
 
 type RunResumedPayload struct {

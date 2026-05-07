@@ -110,3 +110,20 @@ func (rm *LobbyManager) JoinOrCreateLobby(roomCode string, client *t.LobbyPlayer
 
 	return lobby, nil
 }
+
+func (rm *LobbyManager) RemoveFromLobby(id uuid.UUID) (string, error) {
+	lobby, exists := rm.GetLobby(rm.playerLobbies[id])
+	if !exists {
+		return "", fmt.Errorf("Lobby %s does not exist", lobby.Code)
+	}
+
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	delete(rm.playerLobbies, id)
+
+	lobby.mu.Lock()
+	defer lobby.mu.Unlock()
+	delete(lobby.Players, id)
+
+	return lobby.Code, nil
+}
