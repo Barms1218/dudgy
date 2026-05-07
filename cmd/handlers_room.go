@@ -7,16 +7,22 @@ import (
 	t "github.com/Barms1218/dudgy/internal/types"
 )
 
-func (a *App) handleJoinLobby(client *n.Client, payload n.JoinRoomPayload) error {
-	roomPlayer := t.LobbyPlayer{
-		PlayerID:    payload.PlayerID,
-		Displayname: payload.DisplayName,
-		Ready:       false,
+func (a *App) handleJoinLobby(client *n.Client, payload json.RawMessage) error {
+	var joinedRoom n.JoinRoomPayload
+	if err := json.Unmarshal(payload, &joinedRoom); err != nil {
+		return fmt.Errorf("Invalid payload: %w", err)
 	}
-	room, err := a.rm.JoinOrCreateLobby(payload.RoomCode.String(), &roomPlayer)
-	if err != nil {
 
+	roomPlayer := t.LobbyPlayer{
+		PlayerID:    joinedRoom.PlayerID,
+		Displayname: joinedRoom.DisplayName,
 	}
+	room, err := a.rm.JoinOrCreateLobby(joinedRoom.RoomCode.String(), &roomPlayer)
+	if err != nil {
+		return err
+	}
+
+	a.hub.Register <- client
 
 	response := n.RoomJoinResponse{
 		Success: true,
@@ -32,10 +38,15 @@ func (a *App) handleJoinLobby(client *n.Client, payload n.JoinRoomPayload) error
 	return nil
 }
 
-func (a *App) handleLeaveLobby(client *n.Client, payload n.PlayerDisconnectedPayload) error {
-	code, err := a.rm.RemoveFromLobby(payload.PlayerID)
-	if err != nil {
+func (a *App) handleLeaveLobby(client *n.Client, payload json.RawMessage) error {
+	var disconnected n.PlayerLeftPayload
+	if err := json.Unmarshal(payload, &disconnected); err != nil {
+		return err
+	}
 
+	code, err := a.rm.RemoveFromLobby(disconnected.PlayerID)
+	if err != nil {
+		return err
 	}
 
 	data, err := json.Marshal(payload)
@@ -45,7 +56,7 @@ func (a *App) handleLeaveLobby(client *n.Client, payload n.PlayerDisconnectedPay
 	}
 
 	message, err := json.Marshal(broadcast{Message: "You have been disconnected."})
-	if err := a.sendToClient(payload.PlayerID, string(n.LeaveRoom), message); err != nil {
+	if err := a.sendToClient(disconnected.PlayerID, string(n.LeaveRoom), message); err != nil {
 		return fmt.Errorf("Error handling leave lobby request: %w", err)
 	}
 

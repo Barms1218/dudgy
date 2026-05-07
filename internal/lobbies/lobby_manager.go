@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	t "github.com/Barms1218/dudgy/internal/types"
 	"github.com/google/uuid"
@@ -25,14 +26,11 @@ type LobbyManager struct {
 	playerLobbies map[uuid.UUID]string
 	mu            sync.RWMutex
 	ctx           context.Context
-	cancel        context.CancelFunc
 }
 
 func NewLobbyManager(c context.Context) *LobbyManager {
-	ctx, cancel := context.WithCancel(c)
 	return &LobbyManager{
-		ctx:     ctx,
-		cancel:  cancel,
+		ctx:     c,
 		lobbies: make(map[string]*Lobby),
 	}
 }
@@ -54,6 +52,11 @@ func (rm *LobbyManager) GetLobby(code string) (*Lobby, bool) {
 	defer rm.mu.Unlock()
 	lobby, ok := rm.lobbies[code]
 	return lobby, ok
+}
+
+func (l *LobbyManager) PlayerInLobby(id uuid.UUID) bool {
+	_, exists := l.playerLobbies[id]
+	return exists
 }
 
 func (rm *LobbyManager) DeleteLobby(code string) {
@@ -79,8 +82,8 @@ func (rm *LobbyManager) JoinOrCreateLobby(roomCode string, client *t.LobbyPlayer
 	var lobby *Lobby
 	var exists bool
 
-	roomCtx, roomCancel := context.WithCancel(rm.ctx)
 	if roomCode == "" {
+		roomCtx, roomCancel := context.WithTimeout(rm.ctx, 300*time.Second)
 		newCode := generateLobbyCode()
 		lobby = &Lobby{
 			Code:    newCode,
@@ -92,23 +95,59 @@ func (rm *LobbyManager) JoinOrCreateLobby(roomCode string, client *t.LobbyPlayer
 	} else {
 		lobby, exists = rm.lobbies[roomCode]
 		if !exists {
-			roomCancel()
 			return nil, fmt.Errorf("lobby code %s does not exists", roomCode)
+		} else {
+			if client.Cancel != nil {
+				client.Cancel()
+			}
 		}
 	}
 
 	lobby.mu.Lock()
+	defer lobby.mu.Unlock()
 
 	if len(lobby.Players) == 4 {
 		return nil, fmt.Errorf("Lobby %s is full.", roomCode)
 	}
 
 	lobby.Players[client.PlayerID] = client
-	lobby.mu.Unlock()
 
 	rm.playerLobbies[client.PlayerID] = roomCode
 
 	return lobby, nil
+}
+
+func (l *LobbyManager) PreservePlayer(id uuid.UUID) {
+	l.mu.Lock()
+	lobby, exists := l.GetLobby(l.playerLobbies[id])
+	if !exists {
+		return
+	}
+
+	l.mu.Unlock()
+	lobby.mu.Lock()
+
+	ctx, cancel := context.WithTimeout(lobby.ctx, 30*time.Second)
+	player, exists := lobby.Players[id]
+	if !exists {
+		cancel()
+		return
+	}
+
+	player.Ctx = ctx
+	player.Cancel = cancel
+
+	lobby.mu.Unlock()
+
+	go func() {
+		<-ctx.Done()
+		lobby.mu.Lock()
+		defer lobby.mu.Unlock()
+		if ctx.Err() == context.DeadlineExceeded {
+			delete(lobby.Players, id)
+		}
+		lobby.mu.Unlock()
+	}()
 }
 
 func (rm *LobbyManager) RemoveFromLobby(id uuid.UUID) (string, error) {

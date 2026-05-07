@@ -20,7 +20,7 @@ import (
 type App struct {
 	rm      *l.LobbyManager
 	hub     *n.Hub
-	funcMap map[string]func(*n.Client, json.RawMessage) error
+	funcMap map[string]func(client *n.Client, payload json.RawMessage) error
 }
 
 func NewApp(manager *l.LobbyManager) *App {
@@ -30,13 +30,14 @@ func NewApp(manager *l.LobbyManager) *App {
 	}
 }
 
-func (a *App) handleWS() http.HandlerFunc {
+func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
 			http.Error(w, "Accept Failed", http.StatusBadRequest)
 			return
 		}
+		defer conn.CloseNow()
 
 		client := &n.Client{
 			PlayerID: uuid.New(),
@@ -50,12 +51,17 @@ func (a *App) handleWS() http.HandlerFunc {
 			conn.CloseNow()
 		}()
 
+		a.funcMap[string(n.JoinRoom)] = a.handleJoinLobby
+		a.funcMap[string(n.PlayerLeft)] = a.handleLeaveLobby
 		for {
-			readCtx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+			readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			_, msg, err := conn.Read(readCtx)
 			cancel()
 			if err != nil {
-				return
+				if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
+					a.rm.PreservePlayer(client.PlayerID)
+				}
+				break
 			}
 
 			var envelope n.Envelope
@@ -75,10 +81,6 @@ func (a *App) handleWS() http.HandlerFunc {
 
 		}
 	}
-
-}
-
-func (a *App) RouteEnvelope(client *n.Client, msg json.RawMessage, e n.Envelope) {
 
 }
 
@@ -128,7 +130,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: http.HandlerFunc(a.handleWS()),
+		Handler: http.HandlerFunc(a.handleWS(ctx)),
 	}
 
 	go func() {

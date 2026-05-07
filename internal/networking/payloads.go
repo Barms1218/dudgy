@@ -21,16 +21,16 @@ type BroadCastMessage struct {
 type EnvelopeType string
 
 const (
-	JoinRoom           EnvelopeType = "joined_room"
-	PlayerInput        EnvelopeType = "player_input"
-	LeaveRoom          EnvelopeType = "leave_room"
-	RoomJoined         EnvelopeType = "room_joined"
-	PlayerJoined       EnvelopeType = "player_joined"
-	RunStarted         EnvelopeType = "run_started"
-	WorldState         EnvelopeType = "world_state"
-	PlayerDisconnected EnvelopeType = "player_disconnected"
-	RunResumed         EnvelopeType = "run_resumed"
-	Error              EnvelopeType = "error"
+	JoinRoom     EnvelopeType = "joined_room"
+	PlayerInput  EnvelopeType = "player_input"
+	LeaveRoom    EnvelopeType = "leave_room"
+	RoomJoined   EnvelopeType = "room_joined"
+	PlayerJoined EnvelopeType = "player_joined"
+	RunStarted   EnvelopeType = "run_started"
+	WorldState   EnvelopeType = "world_state"
+	PlayerLeft   EnvelopeType = "player_left"
+	RunResumed   EnvelopeType = "run_resumed"
+	Error        EnvelopeType = "error"
 )
 
 type Envelope struct {
@@ -58,17 +58,22 @@ type RunStartedPayload struct {
 
 type WorldStatePayload struct {
 	Tick    int32          `json:"tick"`
-	Players []t.GamePlayer `json:"players"` // Players maps player ID to [x, y, hp]
-	Enemies []t.Enemy      `json:"enemies"` // Enemies maps enemy ID to [x, y, hp]
+	Players []t.GamePlayer `json:"players"`
+	Enemies []t.Enemy      `json:"enemies"`
 }
 
-type PlayerDisconnectedPayload struct {
+type PlayerLeftPayload struct {
 	PlayerID    uuid.UUID `json:"id"`
 	DisplayName string    `json:"name"`
 	RunSaved    bool      `json:"run_saved"`
 }
 
 type RunResumedPayload struct {
+	Seed     int32     `json:"seed"`
+	PlayerID uuid.UUID `json:"id"`
+}
+
+type RunResumedResponse struct {
 	Seed    int32                 `json:"seed"`
 	Map     map[string]any        `json:"map"`
 	Players map[uuid.UUID][]int16 `json:"players"` // Players maps player ID to [x, y, hp]
@@ -90,4 +95,10 @@ type PlayerInputPayload struct {
 	X      int8   `json:"x"`
 	Y      int8   `json:"y"`
 	Action string `json:"action"`
+}
+
+type GenericError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
 }

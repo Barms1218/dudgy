@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 )
@@ -47,5 +48,6 @@ type GamePlayer struct {
 type LobbyPlayer struct {
 	PlayerID    uuid.UUID `json:"player_id"`
 	Displayname string    `json:"display_name"`
-	Ready       bool      `json:"ready"`
+	Ctx         context.Context
+	Cancel      context.CancelFunc
 }
