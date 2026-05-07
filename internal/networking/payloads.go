@@ -23,6 +23,7 @@ type EnvelopeType string
 const (
 	JoinRoom     EnvelopeType = "joined_room"
 	PlayerInput  EnvelopeType = "player_input"
+	UpdateLobby  EnvelopeType = "update_lobby"
 	LeaveRoom    EnvelopeType = "leave_room"
 	RoomJoined   EnvelopeType = "room_joined"
 	PlayerJoined EnvelopeType = "player_joined"
@@ -68,6 +69,11 @@ type PlayerLeftPayload struct {
 	RunSaved    bool      `json:"run_saved"`
 }
 
+type LobbyVisibilityPayload struct {
+	RoomCode string `json:"code"`
+	IsPublic bool   `json:"is_public"`
+}
+
 type RunResumedPayload struct {
 	Seed     int32     `json:"seed"`
 	PlayerID uuid.UUID `json:"id"`
@@ -76,11 +82,11 @@ type RunResumedPayload struct {
 type RunResumedResponse struct {
 	Seed    int32                 `json:"seed"`
 	Map     map[string]any        `json:"map"`
-	Players map[uuid.UUID][]int16 `json:"players"` // Players maps player ID to [x, y, hp]
-	Enemies map[uuid.UUID][]int16 `json:"enemies"` // Enemies maps enemy ID to [x, y, hp]
+	Players map[uuid.UUID][]int16 `json:"players"`
+	Enemies map[uuid.UUID][]int16 `json:"enemies"`
 }
 
-type JoinRoomPayload struct {
+type JoinLobbyPayload struct {
 	PlayerID    uuid.UUID `json:"id"`
 	RoomCode    uuid.UUID `json:"code"`
 	DisplayName string    `json:"name"`
@@ -89,6 +95,10 @@ type JoinRoomPayload struct {
 type RoomJoinResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
+}
+
+type PlayerCreatedPayload struct {
+	Name string `json:"string"`
 }
 
 type PlayerInputPayload struct {

@@ -51,3 +51,8 @@ type LobbyPlayer struct {
 	Ctx         context.Context
 	Cancel      context.CancelFunc
 }
+
+type LobbyInfo struct {
+	Code     string `json:"code"`
+	IsPublic bool   `json:"public"`
+}

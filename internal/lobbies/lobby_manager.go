@@ -14,11 +14,16 @@ import (
 const MAX_PLAYERS = 4
 
 type Lobby struct {
-	Code    string
-	Players map[uuid.UUID]*t.LobbyPlayer
-	ctx     context.Context
-	stop    context.CancelFunc
-	mu      sync.Mutex
+	Owner    uuid.UUID
+	Code     string
+	IsPublic bool
+	Players  map[uuid.UUID]*t.LobbyPlayer
+
+	// Context
+	ctx  context.Context
+	stop context.CancelFunc
+
+	mu sync.Mutex
 }
 
 type LobbyManager struct {
@@ -35,22 +40,22 @@ func NewLobbyManager(c context.Context) *LobbyManager {
 	}
 }
 
-func (rm *LobbyManager) CreateLobbies() *Lobby {
+func (l *LobbyManager) CreateLobbies() *Lobby {
 	code := generateLobbyCode()
 	lobby := &Lobby{
 		Code:    code,
 		Players: make(map[uuid.UUID]*t.LobbyPlayer, 0),
 	}
-	rm.mu.Lock()
-	rm.lobbies[code] = lobby
-	rm.mu.Unlock()
+	l.mu.Lock()
+	l.lobbies[code] = lobby
+	l.mu.Unlock()
 	return lobby
 }
 
-func (rm *LobbyManager) GetLobby(code string) (*Lobby, bool) {
-	rm.mu.RLock()
-	defer rm.mu.Unlock()
-	lobby, ok := rm.lobbies[code]
+func (l *LobbyManager) GetLobby(code string) (*Lobby, bool) {
+	l.mu.RLock()
+	defer l.mu.Unlock()
+	lobby, ok := l.lobbies[code]
 	return lobby, ok
 }
 
@@ -59,10 +64,10 @@ func (l *LobbyManager) PlayerInLobby(id uuid.UUID) bool {
 	return exists
 }
 
-func (rm *LobbyManager) DeleteLobby(code string) {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-	delete(rm.lobbies, code)
+func (l *LobbyManager) DeleteLobby(code string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.lobbies, code)
 }
 
 func generateLobbyCode() string {
@@ -75,27 +80,55 @@ func generateLobbyCode() string {
 	return string(b)
 }
 
-func (rm *LobbyManager) JoinOrCreateLobby(roomCode string, client *t.LobbyPlayer) (*Lobby, error) {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
+func (l *LobbyManager) ToggleLobbyVisibility(roomCode string, isPublic bool) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	lobby, exists := l.GetLobby(roomCode)
+	if !exists {
+		return fmt.Errorf("Room %s does not exist", roomCode)
+	}
+
+	lobby.IsPublic = isPublic
+
+	return nil
+}
+
+func (l *LobbyManager) GetPublicLobbies() []string {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	var public []string
+	for code, lobby := range l.lobbies {
+		if lobby.IsPublic {
+			public = append(public, code)
+		}
+	}
+	return public
+}
+
+func (l *LobbyManager) JoinOrCreateLobby(info t.LobbyInfo, client *t.LobbyPlayer) (*Lobby, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	var lobby *Lobby
 	var exists bool
 
-	if roomCode == "" {
-		roomCtx, roomCancel := context.WithTimeout(rm.ctx, 300*time.Second)
+	if info.Code == "" {
+		roomCtx, roomCancel := context.WithTimeout(l.ctx, 300*time.Second)
 		newCode := generateLobbyCode()
 		lobby = &Lobby{
-			Code:    newCode,
-			Players: make(map[uuid.UUID]*t.LobbyPlayer, 0),
-			ctx:     roomCtx,
-			stop:    roomCancel,
+			Owner:    client.PlayerID,
+			Code:     newCode,
+			IsPublic: info.IsPublic,
+			Players:  make(map[uuid.UUID]*t.LobbyPlayer, 0),
+			ctx:      roomCtx,
+			stop:     roomCancel,
 		}
-		rm.lobbies[newCode] = lobby
+		l.lobbies[newCode] = lobby
 	} else {
-		lobby, exists = rm.lobbies[roomCode]
+		lobby, exists = l.lobbies[info.Code]
 		if !exists {
-			return nil, fmt.Errorf("lobby code %s does not exists", roomCode)
+			return nil, fmt.Errorf("lobby code %s does not exists", info.Code)
 		} else {
 			if client.Cancel != nil {
 				client.Cancel()
@@ -107,21 +140,21 @@ func (rm *LobbyManager) JoinOrCreateLobby(roomCode string, client *t.LobbyPlayer
 	defer lobby.mu.Unlock()
 
 	if len(lobby.Players) == 4 {
-		return nil, fmt.Errorf("Lobby %s is full.", roomCode)
+		return nil, fmt.Errorf("Lobby %s is full.", info.Code)
 	}
 
 	lobby.Players[client.PlayerID] = client
 
-	rm.playerLobbies[client.PlayerID] = roomCode
+	l.playerLobbies[client.PlayerID] = info.Code
 
 	return lobby, nil
 }
 
-func (l *LobbyManager) PreservePlayer(id uuid.UUID) {
+func (l *LobbyManager) PreservePlayer(id uuid.UUID) (bool, error) {
 	l.mu.Lock()
 	lobby, exists := l.GetLobby(l.playerLobbies[id])
 	if !exists {
-		return
+		return exists, fmt.Errorf("No lobby exists for that player.")
 	}
 
 	l.mu.Unlock()
@@ -131,7 +164,7 @@ func (l *LobbyManager) PreservePlayer(id uuid.UUID) {
 	player, exists := lobby.Players[id]
 	if !exists {
 		cancel()
-		return
+		return exists, fmt.Errorf("That player does not exist.")
 	}
 
 	player.Ctx = ctx
@@ -148,17 +181,20 @@ func (l *LobbyManager) PreservePlayer(id uuid.UUID) {
 		}
 		lobby.mu.Unlock()
 	}()
+
+	player, exists = lobby.Players[id]
+	return exists, nil
 }
 
-func (rm *LobbyManager) RemoveFromLobby(id uuid.UUID) (string, error) {
-	lobby, exists := rm.GetLobby(rm.playerLobbies[id])
+func (l *LobbyManager) RemoveFromLobby(id uuid.UUID) (string, error) {
+	lobby, exists := l.GetLobby(l.playerLobbies[id])
 	if !exists {
 		return "", fmt.Errorf("Lobby %s does not exist", lobby.Code)
 	}
 
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-	delete(rm.playerLobbies, id)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.playerLobbies, id)
 
 	lobby.mu.Lock()
 	defer lobby.mu.Unlock()

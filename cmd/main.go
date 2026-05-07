@@ -18,14 +18,14 @@ import (
 )
 
 type App struct {
-	rm      *l.LobbyManager
+	l       *l.LobbyManager
 	hub     *n.Hub
 	funcMap map[string]func(client *n.Client, payload json.RawMessage) error
 }
 
 func NewApp(manager *l.LobbyManager) *App {
 	return &App{
-		rm:  manager,
+		l:   manager,
 		hub: n.NewHub(),
 	}
 }
@@ -53,13 +53,16 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 
 		a.funcMap[string(n.JoinRoom)] = a.handleJoinLobby
 		a.funcMap[string(n.PlayerLeft)] = a.handleLeaveLobby
+		a.funcMap[string(n.UpdateLobby)] = a.handleLobbyVisibility
 		for {
 			readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			_, msg, err := conn.Read(readCtx)
 			cancel()
 			if err != nil {
 				if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
-					a.rm.PreservePlayer(client.PlayerID)
+					if exists := a.l.PlayerInLobby(client.PlayerID); exists {
+						a.l.PreservePlayer(client.PlayerID)
+					}
 				}
 				break
 			}
@@ -109,7 +112,7 @@ func (a *App) broadcast(roomCode, msgType string, data json.RawMessage) {
 		return
 	}
 
-	room, exists := a.rm.GetLobby(roomCode)
+	room, exists := a.l.GetLobby(roomCode)
 	if !exists {
 		return
 	}
