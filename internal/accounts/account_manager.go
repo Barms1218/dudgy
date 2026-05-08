@@ -17,36 +17,56 @@ func NewAccountManager() *AccountManager {
 	return &AccountManager{}
 }
 
-func (a *AccountManager) GetAccount(id uuid.UUID) (*t.Account, bool) {
+func (a *AccountManager) GetAccount(id uuid.UUID) *t.Account {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	account, exists := a.Accounts[id]
-	return account, exists
+	if !exists {
+		return nil
+	}
+	return account
 }
 
-func (a *AccountManager) CreateAccount(id uuid.UUID, name string) (*t.Account, error) {
-	_, exists := a.GetAccount(id)
-	if exists {
-		return nil, fmt.Errorf("That name is already taken")
+func (a *AccountManager) SetAccountName(id uuid.UUID, name string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	account, exists := a.Accounts[id]
+	if !exists {
+		return fmt.Errorf("No account with that id exists")
 	}
 
-	return &t.Account{
-		ID:   uuid.New(),
-		Name: name,
-	}, nil
+	account.Name = name
+
+	return nil
+}
+
+func (a *AccountManager) GetOrCreateAccount(id uuid.UUID) *t.Account {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	account, exists := a.Accounts[id]
+	if exists {
+		return account
+	}
+
+	newAccount := &t.Account{
+		ID: id,
+	}
+	a.Accounts[id] = newAccount
+	return newAccount
 }
 
 func (a *AccountManager) DeleteAccount(id uuid.UUID) (bool, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	_, exists := a.GetAccount(id)
-	if !exists {
-		return exists, fmt.Errorf("No such account exists")
+	account := a.GetAccount(id)
+	if account == nil {
+		return false, fmt.Errorf("No such account exists")
 	}
 
 	delete(a.Accounts, id)
 
-	_, exists = a.GetAccount(id)
-	return exists, nil
+	account = a.GetAccount(id)
+	return false, nil
 }

@@ -11,6 +11,12 @@ type Account struct {
 	Name string
 }
 
+type Avatar struct {
+	AccountID uuid.UUID `json:"id"`
+	Position  Position  `json:"pos"`
+	Velocity  Velocity  `json:"vel"`
+}
+
 type Enemy struct {
 	EnemyID uuid.UUID `json:"id"`
 	Pos     Position  `json:"pos"`

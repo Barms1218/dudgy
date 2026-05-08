@@ -8,19 +8,24 @@ import (
 	"github.com/google/uuid"
 )
 
+type Registration struct {
+	ID   uuid.UUID `json:"id"`
+	Conn *websocket.Conn
+}
+
 type Hub struct {
-	Clients    map[uuid.UUID]*Client
+	Clients    map[uuid.UUID]*websocket.Conn
 	Broadcast  chan BroadCastMessage
-	Register   chan *Client
-	Unregister chan *Client
+	Register   chan *Registration
+	Unregister chan *Registration
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[uuid.UUID]*Client, 0),
+		Clients:    make(map[uuid.UUID]*websocket.Conn, 0),
 		Broadcast:  make(chan BroadCastMessage),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
+		Register:   make(chan *Registration),
+		Unregister: make(chan *Registration),
 	}
 }
 
@@ -29,16 +34,16 @@ func (h *Hub) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			for _, c := range h.Clients {
-				c.Conn.CloseNow()
+				c.CloseNow()
 			}
 			return
 		case client := <-h.Register:
-			h.Clients[client.Account.ID] = client
+			h.Clients[client.ID] = client.Conn
 		case client := <-h.Unregister:
-			delete(h.Clients, client.Account.ID)
+			delete(h.Clients, client.ID)
 			client.Conn.CloseNow()
 		case msg := <-h.Broadcast:
-			var failed []*Client
+			var failed []uuid.UUID
 			for i := range msg.Recipients {
 				client, ok := h.Clients[msg.Recipients[i]]
 				if !ok {
@@ -46,15 +51,15 @@ func (h *Hub) Run(ctx context.Context) {
 				}
 
 				writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := client.Conn.Write(writeCtx, websocket.MessageText, msg.Payload)
+				err := client.Write(writeCtx, websocket.MessageText, msg.Payload)
 				cancel()
 				if err != nil {
-					failed = append(failed, client)
+					failed = append(failed, msg.Recipients[i])
 				}
 			}
-			for _, c := range failed {
-				delete(h.Clients, c.Account.ID)
-				c.Conn.CloseNow()
+			for _, id := range failed {
+				delete(h.Clients, id)
+				h.Clients[id].CloseNow()
 			}
 		}
 	}

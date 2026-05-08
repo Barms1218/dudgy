@@ -4,14 +4,8 @@ import (
 	"encoding/json"
 
 	t "github.com/Barms1218/dudgy/internal/types"
-	"github.com/coder/websocket"
 	"github.com/google/uuid"
 )
-
-type Client struct {
-	Conn    *websocket.Conn
-	Account *t.Account
-}
 
 type BroadCastMessage struct {
 	Recipients []uuid.UUID `json:"ids"`
@@ -23,6 +17,7 @@ type EnvelopeType string
 const (
 	JoinRoom     EnvelopeType = "joined_room"
 	PlayerInput  EnvelopeType = "player_input"
+	Register     EnvelopeType = "register"
 	UpdateLobby  EnvelopeType = "update_lobby"
 	LeaveRoom    EnvelopeType = "leave_room"
 	RoomJoined   EnvelopeType = "room_joined"
@@ -102,7 +97,7 @@ type RoomJoinResponse struct {
 	Message string `json:"message"`
 }
 
-type PlayerCreatedPayload struct {
+type RegisterPayload struct {
 	Name string `json:"string"`
 }
 

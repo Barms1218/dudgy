@@ -3,18 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	n "github.com/Barms1218/dudgy/internal/networking"
 	t "github.com/Barms1218/dudgy/internal/types"
+	"github.com/google/uuid"
 )
 
-func (a *App) handleJoinLobby(client *n.Client, payload json.RawMessage) error {
+func (a *App) handleJoinLobby(id uuid.UUID, payload json.RawMessage) error {
 	var joinedLobby n.JoinLobbyPayload
 	if err := json.Unmarshal(payload, &joinedLobby); err != nil {
 		return fmt.Errorf("Invalid payload: %w", err)
 	}
 
 	lobbyPlayer := t.LobbyPlayer{
-		PlayerID:    joinedLobby.PlayerID,
 		Displayname: joinedLobby.DisplayName,
 	}
 
@@ -42,7 +43,7 @@ func (a *App) handleJoinLobby(client *n.Client, payload json.RawMessage) error {
 		Message: fmt.Sprintf("Welcome to the dungeon, %s!", lobbyPlayer.Displayname),
 	}
 	data, err := json.Marshal(response)
-	if err := a.sendToClient(lobbyPlayer.PlayerID, string(n.RoomJoined), data); err != nil {
+	if err := a.sendToClient(id, n.RoomJoined, data); err != nil {
 		return fmt.Errorf("Error handling join room request: %w", err)
 	}
 
@@ -51,7 +52,7 @@ func (a *App) handleJoinLobby(client *n.Client, payload json.RawMessage) error {
 	return nil
 }
 
-func (a *App) handleLobbyVisibility(client *n.Client, payload json.RawMessage) error {
+func (a *App) handleLobbyVisibility(id uuid.UUID, payload json.RawMessage) error {
 	var visibilityToggle n.LobbyVisibilityPayload
 	if err := json.Unmarshal(payload, &visibilityToggle); err != nil {
 		return err
@@ -62,7 +63,7 @@ func (a *App) handleLobbyVisibility(client *n.Client, payload json.RawMessage) e
 		return fmt.Errorf("Lobby %s does not exist", visibilityToggle.RoomCode)
 	}
 
-	if client.Account.ID != lobby.Owner {
+	if id != lobby.Owner {
 		return fmt.Errorf("User not authorized to change this lobby")
 	}
 
@@ -73,7 +74,7 @@ func (a *App) handleLobbyVisibility(client *n.Client, payload json.RawMessage) e
 	return nil
 }
 
-func (a *App) handleLeaveLobby(client *n.Client, payload json.RawMessage) error {
+func (a *App) handleLeaveLobby(id uuid.UUID, payload json.RawMessage) error {
 	var disconnected n.PlayerLeftPayload
 	if err := json.Unmarshal(payload, &disconnected); err != nil {
 		return err
@@ -91,7 +92,7 @@ func (a *App) handleLeaveLobby(client *n.Client, payload json.RawMessage) error 
 	}
 
 	message, err := json.Marshal(broadcast{Message: "You have been disconnected."})
-	if err := a.sendToClient(disconnected.PlayerID, string(n.LeaveRoom), message); err != nil {
+	if err := a.sendToClient(id, n.LeaveRoom, message); err != nil {
 		return fmt.Errorf("Error handling leave lobby request: %w", err)
 	}
 
