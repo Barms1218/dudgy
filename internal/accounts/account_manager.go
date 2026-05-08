@@ -2,18 +2,14 @@ package accounts
 
 import (
 	"fmt"
+	t "github.com/Barms1218/dudgy/internal/types"
 	"sync"
 
 	"github.com/google/uuid"
 )
 
-type Account struct {
-	ID   uuid.UUID
-	Name string
-}
-
 type AccountManager struct {
-	Accounts map[string]uuid.UUID
+	Accounts map[uuid.UUID]*t.Account
 	mu       sync.Mutex
 }
 
@@ -21,36 +17,36 @@ func NewAccountManager() *AccountManager {
 	return &AccountManager{}
 }
 
-func (a *AccountManager) GetAccount(name string) (uuid.UUID, bool) {
+func (a *AccountManager) GetAccount(id uuid.UUID) (*t.Account, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	id, exists := a.Accounts[name]
-	return id, exists
+	account, exists := a.Accounts[id]
+	return account, exists
 }
 
-func (a *AccountManager) CreateAccount(name string) (*Account, error) {
-	_, exists := a.GetAccount(name)
+func (a *AccountManager) CreateAccount(id uuid.UUID, name string) (*t.Account, error) {
+	_, exists := a.GetAccount(id)
 	if exists {
 		return nil, fmt.Errorf("That name is already taken")
 	}
 
-	return &Account{
+	return &t.Account{
 		ID:   uuid.New(),
 		Name: name,
 	}, nil
 }
 
-func (a *AccountManager) DeleteAccount(name string) (bool, error) {
+func (a *AccountManager) DeleteAccount(id uuid.UUID) (bool, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	_, exists := a.GetAccount(name)
+	_, exists := a.GetAccount(id)
 	if !exists {
 		return exists, fmt.Errorf("No such account exists")
 	}
 
-	delete(a.Accounts, name)
+	delete(a.Accounts, id)
 
-	_, exists = a.GetAccount(name)
+	_, exists = a.GetAccount(id)
 	return exists, nil
 }

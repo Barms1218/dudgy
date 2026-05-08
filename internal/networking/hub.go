@@ -33,9 +33,9 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 			return
 		case client := <-h.Register:
-			h.Clients[client.PlayerID] = client
+			h.Clients[client.Account.ID] = client
 		case client := <-h.Unregister:
-			delete(h.Clients, client.PlayerID)
+			delete(h.Clients, client.Account.ID)
 			client.Conn.CloseNow()
 		case msg := <-h.Broadcast:
 			var failed []*Client
@@ -53,7 +53,7 @@ func (h *Hub) Run(ctx context.Context) {
 				}
 			}
 			for _, c := range failed {
-				delete(h.Clients, c.PlayerID)
+				delete(h.Clients, c.Account.ID)
 				c.Conn.CloseNow()
 			}
 		}

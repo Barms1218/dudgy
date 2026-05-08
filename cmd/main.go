@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	l "github.com/Barms1218/dudgy/internal/lobbies"
-	n "github.com/Barms1218/dudgy/internal/networking"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,20 +10,26 @@ import (
 	"syscall"
 	"time"
 
+	l "github.com/Barms1218/dudgy/internal/lobbies"
+	n "github.com/Barms1218/dudgy/internal/networking"
+	t "github.com/Barms1218/dudgy/internal/types"
+
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
 )
 
 type App struct {
+	logger  *slog.Logger
 	l       *l.LobbyManager
 	hub     *n.Hub
 	funcMap map[string]func(client *n.Client, payload json.RawMessage) error
 }
 
-func NewApp(manager *l.LobbyManager) *App {
+func NewApp(logger *slog.Logger, manager *l.LobbyManager) *App {
 	return &App{
-		l:   manager,
-		hub: n.NewHub(),
+		logger: logger,
+		l:      manager,
+		hub:    n.NewHub(),
 	}
 }
 
@@ -39,9 +42,12 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 		}
 		defer conn.CloseNow()
 
+		newAccount := &t.Account{
+			ID: uuid.New(),
+		}
 		client := &n.Client{
-			PlayerID: uuid.New(),
-			Conn:     conn,
+			Conn:    conn,
+			Account: newAccount,
 		}
 
 		a.hub.Register <- client
@@ -54,14 +60,15 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 		a.funcMap[string(n.JoinRoom)] = a.handleJoinLobby
 		a.funcMap[string(n.PlayerLeft)] = a.handleLeaveLobby
 		a.funcMap[string(n.UpdateLobby)] = a.handleLobbyVisibility
+		a.funcMap[string(n.Reconnect)] = a.handleReconnect
 		for {
 			readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			_, msg, err := conn.Read(readCtx)
 			cancel()
 			if err != nil {
 				if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
-					if exists := a.l.PlayerInLobby(client.PlayerID); exists {
-						a.l.PreservePlayer(client.PlayerID)
+					if exists := a.l.PlayerInLobby(client.Account.ID); exists {
+						a.l.PreservePlayer(client.Account.ID)
 					}
 				}
 				break
@@ -69,13 +76,13 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 
 			var envelope n.Envelope
 			if err := json.Unmarshal(msg, &envelope); err != nil {
-				log.Printf("Malformed message from %s: %v", client.PlayerID, err)
+
 				continue
 			}
 
 			handleFunc, ok := a.funcMap[string(envelope.Type)]
 			if !ok {
-				log.Printf("Command %v does not exist", envelope.Type)
+				a.logger.Error("Command %v does not exist", "error", envelope.Type)
 			}
 
 			if err := handleFunc(client, envelope.Payload); err != nil {
@@ -85,6 +92,11 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 		}
 	}
 
+}
+
+func (a *App) handleReconnect(client *n.Client, msg json.RawMessage) error {
+
+	return nil
 }
 
 func (a *App) sendToClient(id uuid.UUID, msgType string, data json.RawMessage) error {
@@ -129,7 +141,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(bgCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	a := NewApp(l.NewLobbyManager(bgCtx))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
+	a := NewApp(logger, l.NewLobbyManager(bgCtx))
 
 	srv := &http.Server{
 		Addr:    ":8080",
@@ -143,9 +158,6 @@ func main() {
 	}()
 
 	go a.hub.Run(ctx)
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
 
 	<-ctx.Done()
 	log.Println("Shutting down, draining connections...")

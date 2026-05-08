@@ -6,6 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type Account struct {
+	ID   uuid.UUID
+	Name string
+}
+
 type Enemy struct {
 	EnemyID uuid.UUID `json:"id"`
 	Pos     Position  `json:"pos"`

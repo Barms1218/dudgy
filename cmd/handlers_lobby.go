@@ -37,8 +37,6 @@ func (a *App) handleJoinLobby(client *n.Client, payload json.RawMessage) error {
 		return err
 	}
 
-	a.hub.Register <- client
-
 	response := n.RoomJoinResponse{
 		Success: true,
 		Message: fmt.Sprintf("Welcome to the dungeon, %s!", lobbyPlayer.Displayname),
@@ -64,7 +62,7 @@ func (a *App) handleLobbyVisibility(client *n.Client, payload json.RawMessage) e
 		return fmt.Errorf("Lobby %s does not exist", visibilityToggle.RoomCode)
 	}
 
-	if client.PlayerID != lobby.Owner {
+	if client.Account.ID != lobby.Owner {
 		return fmt.Errorf("User not authorized to change this lobby")
 	}
 

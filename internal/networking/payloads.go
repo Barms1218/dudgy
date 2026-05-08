@@ -9,8 +9,8 @@ import (
 )
 
 type Client struct {
-	PlayerID uuid.UUID `json:"id"`
-	Conn     *websocket.Conn
+	Conn    *websocket.Conn
+	Account *t.Account
 }
 
 type BroadCastMessage struct {
@@ -26,6 +26,7 @@ const (
 	UpdateLobby  EnvelopeType = "update_lobby"
 	LeaveRoom    EnvelopeType = "leave_room"
 	RoomJoined   EnvelopeType = "room_joined"
+	Reconnect    EnvelopeType = "reconnect"
 	PlayerJoined EnvelopeType = "player_joined"
 	RunStarted   EnvelopeType = "run_started"
 	WorldState   EnvelopeType = "world_state"
@@ -72,6 +73,10 @@ type PlayerLeftPayload struct {
 type LobbyVisibilityPayload struct {
 	RoomCode string `json:"code"`
 	IsPublic bool   `json:"is_public"`
+}
+
+type ReconnectPayload struct {
+	ID uuid.UUID `json:"id"`
 }
 
 type RunResumedPayload struct {
