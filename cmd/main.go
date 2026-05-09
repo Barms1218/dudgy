@@ -24,7 +24,7 @@ type App struct {
 	l       *l.LobbyManager
 	hub     *n.Hub
 	am      *a.AccountManager
-	funcMap map[n.EnvelopeType]func(id uuid.UUID, payload json.RawMessage) error
+	funcMap map[n.EnvelopeType]func(id string, payload json.RawMessage) error
 }
 
 func NewApp(logger *slog.Logger, manager *l.LobbyManager) *App {
@@ -32,7 +32,7 @@ func NewApp(logger *slog.Logger, manager *l.LobbyManager) *App {
 		logger:  logger,
 		l:       manager,
 		hub:     n.NewHub(),
-		funcMap: make(map[n.EnvelopeType]func(id uuid.UUID, payload json.RawMessage) error),
+		funcMap: make(map[n.EnvelopeType]func(id string, payload json.RawMessage) error),
 	}
 }
 
@@ -74,16 +74,16 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 
 }
 
-func (a *App) identifyUser(idStr string) (uuid.UUID, error) {
-	var id uuid.UUID
+func (a *App) identifyUser(idStr string) (string, error) {
+	var id string
 	var err error
 	if idStr == "" {
-		id = uuid.New()
+		id = uuid.NewString()
 	} else {
-		id, err = uuid.Parse(idStr)
+		id = idStr
 		if err != nil {
 			a.logger.Error("Invalid id", "error", err)
-			return uuid.UUID{}, err
+			return "", err
 		}
 
 	}
@@ -91,7 +91,7 @@ func (a *App) identifyUser(idStr string) (uuid.UUID, error) {
 	return id, nil
 }
 
-func (a *App) resolveIdentity(ctx context.Context, conn *websocket.Conn, id uuid.UUID) error {
+func (a *App) resolveIdentity(ctx context.Context, conn *websocket.Conn, id string) error {
 	account := a.am.GetOrCreateAccount(id)
 	if account.Name == "" {
 		conn.Write(ctx, websocket.MessageText, []byte("Need username"))
@@ -155,7 +155,7 @@ func (a *App) runSession(ctx context.Context, conn *websocket.Conn, r *n.Registr
 	}
 }
 
-func (a *App) sendToClient(id uuid.UUID, msgType n.EnvelopeType, data json.RawMessage) error {
+func (a *App) sendToClient(id string, msgType n.EnvelopeType, data json.RawMessage) error {
 	envelope := n.Envelope{
 		Type:    msgType,
 		Payload: json.RawMessage(data),
@@ -185,7 +185,7 @@ func (a *App) broadcast(roomCode, msgType string, data json.RawMessage) {
 		return
 	}
 
-	ids := make([]uuid.UUID, 0, len(room.Players))
+	ids := make([]string, 0, len(room.Players))
 	for _, player := range room.Players {
 		ids = append(ids, player.PlayerID)
 	}

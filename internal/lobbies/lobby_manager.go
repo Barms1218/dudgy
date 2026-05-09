@@ -8,16 +8,15 @@ import (
 	"time"
 
 	t "github.com/Barms1218/dudgy/internal/types"
-	"github.com/google/uuid"
 )
 
 const MAX_PLAYERS = 4
 
 type Lobby struct {
-	Owner    uuid.UUID
+	Owner    string
 	Code     string
 	IsPublic bool
-	Players  map[uuid.UUID]*t.LobbyPlayer
+	Players  map[string]*t.LobbyPlayer
 
 	// Context
 	ctx  context.Context
@@ -28,7 +27,7 @@ type Lobby struct {
 
 type LobbyManager struct {
 	lobbies       map[string]*Lobby
-	playerLobbies map[uuid.UUID]string
+	playerLobbies map[string]string
 	mu            sync.RWMutex
 	ctx           context.Context
 }
@@ -44,7 +43,7 @@ func (l *LobbyManager) CreateLobbies() *Lobby {
 	code := generateLobbyCode()
 	lobby := &Lobby{
 		Code:    code,
-		Players: make(map[uuid.UUID]*t.LobbyPlayer, 0),
+		Players: make(map[string]*t.LobbyPlayer, 0),
 	}
 	l.mu.Lock()
 	l.lobbies[code] = lobby
@@ -59,7 +58,7 @@ func (l *LobbyManager) GetLobby(code string) (*Lobby, bool) {
 	return lobby, ok
 }
 
-func (l *LobbyManager) PlayerInLobby(id uuid.UUID) bool {
+func (l *LobbyManager) PlayerInLobby(id string) bool {
 	_, exists := l.playerLobbies[id]
 	return exists
 }
@@ -120,7 +119,7 @@ func (l *LobbyManager) JoinOrCreateLobby(info t.LobbyInfo, client *t.LobbyPlayer
 			Owner:    client.PlayerID,
 			Code:     newCode,
 			IsPublic: info.IsPublic,
-			Players:  make(map[uuid.UUID]*t.LobbyPlayer, 0),
+			Players:  make(map[string]*t.LobbyPlayer, 0),
 			ctx:      roomCtx,
 			stop:     roomCancel,
 		}
@@ -150,7 +149,7 @@ func (l *LobbyManager) JoinOrCreateLobby(info t.LobbyInfo, client *t.LobbyPlayer
 	return lobby, nil
 }
 
-func (l *LobbyManager) PreservePlayer(id uuid.UUID) (bool, error) {
+func (l *LobbyManager) PreservePlayer(id string) (bool, error) {
 	l.mu.Lock()
 	lobby, exists := l.GetLobby(l.playerLobbies[id])
 	if !exists {
@@ -186,7 +185,7 @@ func (l *LobbyManager) PreservePlayer(id uuid.UUID) (bool, error) {
 	return exists, nil
 }
 
-func (l *LobbyManager) RemoveFromLobby(id uuid.UUID) (string, error) {
+func (l *LobbyManager) RemoveFromLobby(id string) (string, error) {
 	lobby, exists := l.GetLobby(l.playerLobbies[id])
 	if !exists {
 		return "", fmt.Errorf("Lobby %s does not exist", lobby.Code)

@@ -4,12 +4,10 @@ import (
 	"fmt"
 	t "github.com/Barms1218/dudgy/internal/types"
 	"sync"
-
-	"github.com/google/uuid"
 )
 
 type AccountManager struct {
-	Accounts map[uuid.UUID]*t.Account
+	Accounts map[string]*t.Account
 	mu       sync.Mutex
 }
 
@@ -17,7 +15,7 @@ func NewAccountManager() *AccountManager {
 	return &AccountManager{}
 }
 
-func (a *AccountManager) GetAccount(id uuid.UUID) *t.Account {
+func (a *AccountManager) GetAccount(id string) *t.Account {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	account, exists := a.Accounts[id]
@@ -27,7 +25,7 @@ func (a *AccountManager) GetAccount(id uuid.UUID) *t.Account {
 	return account
 }
 
-func (a *AccountManager) SetAccountName(id uuid.UUID, name string) error {
+func (a *AccountManager) SetAccountName(id string, name string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -41,7 +39,7 @@ func (a *AccountManager) SetAccountName(id uuid.UUID, name string) error {
 	return nil
 }
 
-func (a *AccountManager) GetOrCreateAccount(id uuid.UUID) *t.Account {
+func (a *AccountManager) GetOrCreateAccount(id string) *t.Account {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	account, exists := a.Accounts[id]
@@ -56,7 +54,7 @@ func (a *AccountManager) GetOrCreateAccount(id uuid.UUID) *t.Account {
 	return newAccount
 }
 
-func (a *AccountManager) DeleteAccount(id uuid.UUID) (bool, error) {
+func (a *AccountManager) DeleteAccount(id string) (bool, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

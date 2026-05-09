@@ -3,28 +3,27 @@ package types
 import (
 	"context"
 	"github.com/coder/websocket"
-	"github.com/google/uuid"
 )
 
 type Account struct {
-	ID   uuid.UUID
+	ID   string
 	Name string
 }
 
 type Avatar struct {
-	AccountID uuid.UUID `json:"id"`
-	Position  Position  `json:"pos"`
-	Velocity  Velocity  `json:"vel"`
+	AccountID string   `json:"id"`
+	Position  Position `json:"pos"`
+	Velocity  Velocity `json:"vel"`
 }
 
 type Enemy struct {
-	EnemyID uuid.UUID `json:"id"`
-	Pos     Position  `json:"pos"`
-	Health  int8      `json:"hp"`
+	EnemyID string   `json:"id"`
+	Pos     Position `json:"pos"`
+	Health  int8     `json:"hp"`
 }
 
 type Player struct {
-	PlayerID uuid.UUID       `json:"id"`
+	PlayerID string          `json:"id"`
 	Name     string          `json:"name"`
 	Conn     *websocket.Conn `json:"conn"`
 }
@@ -36,8 +35,8 @@ type Map struct {
 }
 
 type SpawnPositions struct {
-	PlayerID uuid.UUID `json:"player_id"`
-	Pos      Position  `json:"pos"`
+	PlayerID string   `json:"player_id"`
+	Pos      Position `json:"pos"`
 }
 
 type Position struct {
@@ -51,14 +50,14 @@ type Velocity struct {
 }
 
 type GamePlayer struct {
-	PlayerID uuid.UUID `json:"id"`
-	Pos      Position  `json:"pos"`
-	Health   int8      `json:"hp"`
+	PlayerID string   `json:"id"`
+	Pos      Position `json:"pos"`
+	Health   int8     `json:"hp"`
 }
 
 type LobbyPlayer struct {
-	PlayerID    uuid.UUID `json:"player_id"`
-	Displayname string    `json:"display_name"`
+	PlayerID    string `json:"player_id"`
+	Displayname string `json:"display_name"`
 	Ctx         context.Context
 	Cancel      context.CancelFunc
 }

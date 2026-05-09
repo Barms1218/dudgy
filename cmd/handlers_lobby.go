@@ -6,10 +6,9 @@ import (
 
 	n "github.com/Barms1218/dudgy/internal/networking"
 	t "github.com/Barms1218/dudgy/internal/types"
-	"github.com/google/uuid"
 )
 
-func (a *App) handleJoinLobby(id uuid.UUID, payload json.RawMessage) error {
+func (a *App) handleJoinLobby(id string, payload json.RawMessage) error {
 	var joinedLobby n.JoinLobbyPayload
 	if err := json.Unmarshal(payload, &joinedLobby); err != nil {
 		return fmt.Errorf("Invalid payload: %w", err)
@@ -20,10 +19,10 @@ func (a *App) handleJoinLobby(id uuid.UUID, payload json.RawMessage) error {
 	}
 
 	var isPublic bool
-	if joinedLobby.RoomCode.String() != "" {
-		lobby, exists := a.l.GetLobby(joinedLobby.RoomCode.String())
+	if joinedLobby.RoomCode != "" {
+		lobby, exists := a.l.GetLobby(joinedLobby.RoomCode)
 		if !exists {
-			return fmt.Errorf("Lobby %s does not exist", joinedLobby.RoomCode.String())
+			return fmt.Errorf("Lobby %s does not exist", joinedLobby.RoomCode)
 		}
 		isPublic = lobby.IsPublic
 	} else {
@@ -31,7 +30,7 @@ func (a *App) handleJoinLobby(id uuid.UUID, payload json.RawMessage) error {
 	}
 
 	room, err := a.l.JoinOrCreateLobby(t.LobbyInfo{
-		Code:     joinedLobby.RoomCode.String(),
+		Code:     joinedLobby.RoomCode,
 		IsPublic: isPublic,
 	}, &lobbyPlayer)
 	if err != nil {
@@ -52,7 +51,7 @@ func (a *App) handleJoinLobby(id uuid.UUID, payload json.RawMessage) error {
 	return nil
 }
 
-func (a *App) handleLobbyVisibility(id uuid.UUID, payload json.RawMessage) error {
+func (a *App) handleLobbyVisibility(id string, payload json.RawMessage) error {
 	var visibilityToggle n.LobbyVisibilityPayload
 	if err := json.Unmarshal(payload, &visibilityToggle); err != nil {
 		return err
@@ -74,7 +73,7 @@ func (a *App) handleLobbyVisibility(id uuid.UUID, payload json.RawMessage) error
 	return nil
 }
 
-func (a *App) handleLeaveLobby(id uuid.UUID, payload json.RawMessage) error {
+func (a *App) handleLeaveLobby(id string, payload json.RawMessage) error {
 	var disconnected n.PlayerLeftPayload
 	if err := json.Unmarshal(payload, &disconnected); err != nil {
 		return err

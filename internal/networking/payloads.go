@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 
 	t "github.com/Barms1218/dudgy/internal/types"
-	"github.com/google/uuid"
 )
 
 type BroadCastMessage struct {
-	Recipients []uuid.UUID `json:"ids"`
+	Recipients []string `json:"ids"`
 	Payload    []byte
 }
 
@@ -40,10 +39,10 @@ type DisconnectPayload struct {
 }
 
 type RoomJoinedPayload struct {
-	RoomCode        uuid.UUID         `json:"room_code"`
-	YourPlayerID    uuid.UUID         `json:"your_player_id"`
-	DisplayName     string            `json:"display_name"`
-	ExistingPlayers map[uuid.UUID]any `json:"players"`
+	RoomCode        string         `json:"room_code"`
+	YourPlayerID    string         `json:"your_player_id"`
+	DisplayName     string         `json:"display_name"`
+	ExistingPlayers map[string]any `json:"players"`
 }
 
 type RunStartedPayload struct {
@@ -60,9 +59,9 @@ type WorldStatePayload struct {
 }
 
 type PlayerLeftPayload struct {
-	PlayerID    uuid.UUID `json:"id"`
-	DisplayName string    `json:"name"`
-	RunSaved    bool      `json:"run_saved"`
+	PlayerID    string `json:"id"`
+	DisplayName string `json:"name"`
+	RunSaved    bool   `json:"run_saved"`
 }
 
 type LobbyVisibilityPayload struct {
@@ -71,25 +70,25 @@ type LobbyVisibilityPayload struct {
 }
 
 type ReconnectPayload struct {
-	ID uuid.UUID `json:"id"`
+	ID string `json:"id"`
 }
 
 type RunResumedPayload struct {
-	Seed     int32     `json:"seed"`
-	PlayerID uuid.UUID `json:"id"`
+	Seed     int32  `json:"seed"`
+	PlayerID string `json:"id"`
 }
 
 type RunResumedResponse struct {
-	Seed    int32                 `json:"seed"`
-	Map     map[string]any        `json:"map"`
-	Players map[uuid.UUID][]int16 `json:"players"`
-	Enemies map[uuid.UUID][]int16 `json:"enemies"`
+	Seed    int32              `json:"seed"`
+	Map     map[string]any     `json:"map"`
+	Players map[string][]int16 `json:"players"`
+	Enemies map[string][]int16 `json:"enemies"`
 }
 
 type JoinLobbyPayload struct {
-	PlayerID    uuid.UUID `json:"id"`
-	RoomCode    uuid.UUID `json:"code"`
-	DisplayName string    `json:"name"`
+	PlayerID    string `json:"id"`
+	RoomCode    string `json:"code"`
+	DisplayName string `json:"name"`
 }
 
 type RoomJoinResponse struct {

@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 
 	n "github.com/Barms1218/dudgy/internal/networking"
-	"github.com/google/uuid"
 )
 
-func (a *App) handleRegistration(id uuid.UUID, payload json.RawMessage) error {
+func (a *App) handleRegistration(id string, payload json.RawMessage) error {
 	var registration n.RegisterPayload
 	if err := json.Unmarshal(payload, &registration); err != nil {
 		return err
@@ -20,7 +19,7 @@ func (a *App) handleRegistration(id uuid.UUID, payload json.RawMessage) error {
 	return nil
 }
 
-func (a *App) handleReconnect(id uuid.UUID, msg json.RawMessage) error {
+func (a *App) handleReconnect(id string, msg json.RawMessage) error {
 
 	return nil
 }

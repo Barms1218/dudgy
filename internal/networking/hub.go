@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/google/uuid"
 )
 
 type Registration struct {
-	ID   uuid.UUID `json:"id"`
+	ID   string `json:"id"`
 	Conn *websocket.Conn
 }
 
 type Hub struct {
-	Clients    map[uuid.UUID]*websocket.Conn
+	Clients    map[string]*websocket.Conn
 	Broadcast  chan BroadCastMessage
 	Register   chan *Registration
 	Unregister chan *Registration
@@ -22,7 +21,7 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[uuid.UUID]*websocket.Conn, 0),
+		Clients:    make(map[string]*websocket.Conn, 0),
 		Broadcast:  make(chan BroadCastMessage),
 		Register:   make(chan *Registration),
 		Unregister: make(chan *Registration),
@@ -43,7 +42,7 @@ func (h *Hub) Run(ctx context.Context) {
 			delete(h.Clients, client.ID)
 			client.Conn.CloseNow()
 		case msg := <-h.Broadcast:
-			var failed []uuid.UUID
+			var failed []string
 			for i := range msg.Recipients {
 				client, ok := h.Clients[msg.Recipients[i]]
 				if !ok {
