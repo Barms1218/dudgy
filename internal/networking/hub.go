@@ -2,29 +2,33 @@ package networking
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
 )
 
-type Registration struct {
-	ID   string `json:"id"`
-	Conn *websocket.Conn
+type Client struct {
+	ID     string `json:"id"`
+	Conn   *websocket.Conn
+	Ctx    context.Context
+	Cancel context.CancelFunc
+	Mu     sync.Mutex
 }
 
 type Hub struct {
-	Clients    map[string]*websocket.Conn
+	Clients    map[string]*Client
 	Broadcast  chan BroadCastMessage
-	Register   chan *Registration
-	Unregister chan *Registration
+	Register   chan *Client
+	Unregister chan *Client
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Clients:    make(map[string]*websocket.Conn, 0),
+		Clients:    make(map[string]*Client, 0),
 		Broadcast:  make(chan BroadCastMessage),
-		Register:   make(chan *Registration),
-		Unregister: make(chan *Registration),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
 	}
 }
 
@@ -33,11 +37,11 @@ func (h *Hub) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			for _, c := range h.Clients {
-				c.CloseNow()
+				c.Conn.CloseNow()
 			}
 			return
 		case client := <-h.Register:
-			h.Clients[client.ID] = client.Conn
+			h.Clients[client.ID] = client
 		case client := <-h.Unregister:
 			delete(h.Clients, client.ID)
 			client.Conn.CloseNow()
@@ -50,7 +54,7 @@ func (h *Hub) Run(ctx context.Context) {
 				}
 
 				writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := client.Write(writeCtx, websocket.MessageText, msg.Payload)
+				err := client.Conn.Write(writeCtx, websocket.MessageText, msg.Payload)
 				cancel()
 				if err != nil {
 					failed = append(failed, msg.Recipients[i])
@@ -58,7 +62,7 @@ func (h *Hub) Run(ctx context.Context) {
 			}
 			for _, id := range failed {
 				delete(h.Clients, id)
-				h.Clients[id].CloseNow()
+				h.Clients[id].Conn.CloseNow()
 			}
 		}
 	}

@@ -12,9 +12,9 @@ import (
 
 	l "github.com/Barms1218/dudgy/internal/lobbies"
 	n "github.com/Barms1218/dudgy/internal/networking"
+	"github.com/google/uuid"
 
 	"github.com/coder/websocket"
-	"github.com/google/uuid"
 )
 
 type App struct {
@@ -37,61 +37,57 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
-			http.Error(w, "Accept Failed", http.StatusBadRequest)
+			http.Error(w, "Connection Request Denied", http.StatusBadRequest)
 			return
 		}
 		defer conn.CloseNow()
 
 		idStr := r.URL.Query().Get("id")
-		id, err := a.identifyUser(idStr)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		_, exists := a.hub.Clients[id]
+		client, exists := a.hub.Clients[idStr]
 		if exists {
-			a.hub.Clients[id] = conn
+			client.Conn = conn
+			a.handleReconnect(client)
+		} else {
+			client = &n.Client{
+				ID:   uuid.NewString(),
+				Conn: conn,
+			}
+
+			a.hub.Register <- client
 		}
 
-		registration := &n.Registration{
-			ID:   id,
-			Conn: conn,
-		}
-
-		a.hub.Register <- registration
-
-		defer func() {
-			a.hub.Unregister <- registration
-			conn.CloseNow()
-		}()
-
-		a.runSession(ctx, conn, registration)
+		a.runSession(ctx, conn, client)
 	}
 
 }
 
-func (a *App) identifyUser(idStr string) (string, error) {
-	var id string
-	if idStr == "" {
-		id = uuid.NewString()
-	} else {
-		id = idStr
-	}
-
-	return id, nil
+func (a *App) handleReconnect(c *n.Client) {
+	c.Cancel()
+	c.Mu.Lock()
+	c.Ctx = nil
+	c.Cancel = nil
+	c.Mu.Unlock()
 }
 
-func (a *App) runSession(ctx context.Context, conn *websocket.Conn, r *n.Registration) {
+func (a *App) runSession(ctx context.Context, conn *websocket.Conn, r *n.Client) {
 	for {
 		readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		_, msg, err := conn.Read(readCtx)
 		cancel()
 		if err != nil {
 			if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
-				if exists := a.l.PlayerInLobby(r.ID); exists {
-					a.l.PreservePlayer(r.ID)
-				}
+				timeCtx, timeCancel := context.WithTimeout(ctx, 30*time.Second)
+				r.Mu.Lock()
+				r.Ctx = timeCtx
+				r.Cancel = timeCancel
+				r.Mu.Unlock()
+				go func() {
+					<-timeCtx.Done()
+					if timeCtx.Err() == context.DeadlineExceeded {
+						a.Unregister(r)
+					}
+				}()
+
 			}
 			break
 		}
@@ -100,6 +96,10 @@ func (a *App) runSession(ctx context.Context, conn *websocket.Conn, r *n.Registr
 		if err := json.Unmarshal(msg, &envelope); err != nil {
 			a.logger.Error("Envelope unmarshaling failed", "error", err)
 			continue
+		}
+
+		if envelope.Type == n.Reconnect {
+			a.handleReconnect(r)
 		}
 
 		handleFunc, ok := a.funcMap[envelope.Type]
@@ -126,7 +126,7 @@ func (a *App) sendToClient(id string, msgType n.EnvelopeType, data json.RawMessa
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return a.hub.Clients[id].Write(ctx, websocket.MessageText, out)
+	return a.hub.Clients[id].Conn.Write(ctx, websocket.MessageText, out)
 }
 
 func (a *App) broadcast(roomCode string, msgType n.EnvelopeType, data json.RawMessage) error {
@@ -149,6 +149,14 @@ func (a *App) broadcast(roomCode string, msgType n.EnvelopeType, data json.RawMe
 		ids = append(ids, player.PlayerID)
 	}
 	a.hub.Broadcast <- n.BroadCastMessage{Recipients: ids, Payload: out}
+
+	return nil
+}
+
+func (a *App) Unregister(client *n.Client) error {
+	a.hub.Unregister <- client
+	a.l.RemoveFromLobby(client.ID)
+	client.Conn.CloseNow()
 
 	return nil
 }

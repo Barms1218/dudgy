@@ -130,42 +130,6 @@ func (l *LobbyManager) CreateLobby(info t.LobbyInfo, client *t.LobbyPlayer) erro
 	return nil
 }
 
-func (l *LobbyManager) PreservePlayer(id string) (bool, error) {
-	l.mu.Lock()
-	lobby, exists := l.GetLobby(l.playerLobbies[id])
-	if !exists {
-		return exists, fmt.Errorf("No lobby exists for that player.")
-	}
-
-	l.mu.Unlock()
-	lobby.mu.Lock()
-
-	ctx, cancel := context.WithTimeout(lobby.ctx, 30*time.Second)
-	player, exists := lobby.Players[id]
-	if !exists {
-		cancel()
-		return exists, fmt.Errorf("That player does not exist.")
-	}
-
-	player.Ctx = ctx
-	player.Cancel = cancel
-
-	lobby.mu.Unlock()
-
-	go func() {
-		<-ctx.Done()
-		lobby.mu.Lock()
-		defer lobby.mu.Unlock()
-		if ctx.Err() == context.DeadlineExceeded {
-			delete(lobby.Players, id)
-		}
-		lobby.mu.Unlock()
-	}()
-
-	player, exists = lobby.Players[id]
-	return exists, nil
-}
-
 func (l *LobbyManager) RemoveFromLobby(id string) error {
 	lobby, exists := l.GetLobby(l.playerLobbies[id])
 	if !exists {
@@ -194,6 +158,10 @@ func (l *LobbyManager) SelectClass(id, code string, class t.ClassType) error {
 
 	var claimed bool
 	requestingPlayer, exists := lobby.Players[id]
+	if !exists {
+		return fmt.Errorf("No valid id sent with request")
+	}
+
 	for _, player := range lobby.Players {
 		if player.Class == class && lobby.IsPublic {
 			claimed = true
