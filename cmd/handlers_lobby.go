@@ -115,6 +115,21 @@ func (a *App) handleReadyStateToggle(id string, payload json.RawMessage) error {
 		return err
 	}
 
+	var response n.ToggleReadyResponse
+	if a.l.IsLobbyReady(readyToggle.LobbyCode) {
+		response = n.ToggleReadyResponse{
+			Ready:   false,
+			Message: "Countdown cancelled.",
+		}
+
+		data, err := json.Marshal(&response)
+		if err != nil {
+			return err
+		}
+
+		return a.broadcast(readyToggle.LobbyCode, n.PlayerReady, data)
+	}
+
 	ready, err := a.l.ToggleReadyState(readyToggle.LobbyCode, id)
 	if err != nil {
 		return err
@@ -124,7 +139,7 @@ func (a *App) handleReadyStateToggle(id string, payload json.RawMessage) error {
 		return nil
 	}
 
-	response := n.ToggleReadyResponse{
+	response = n.ToggleReadyResponse{
 		Ready:   true,
 		Message: "All players ready. Beginning countdown...",
 	}

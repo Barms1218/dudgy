@@ -18,6 +18,7 @@ type Lobby struct {
 	IsPublic bool
 	Players  map[string]*t.LobbyPlayer
 	Name     string
+	Ready    bool
 
 	// Context
 	ctx  context.Context
@@ -38,6 +39,15 @@ func NewLobbyManager(c context.Context) *LobbyManager {
 		ctx:     c,
 		lobbies: make(map[string]*Lobby),
 	}
+}
+
+func (l *LobbyManager) IsLobbyReady(lobbyCode string) bool {
+	lobby := l.GetLobby(lobbyCode)
+	if lobby == nil {
+		return false
+	}
+
+	return lobby.Ready
 }
 
 func (l *LobbyManager) CreateLobbies() *Lobby {
@@ -101,13 +111,16 @@ func generateLobbyCode() string {
 func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, error) {
 	lobby := l.GetLobby(lobbyCode)
 	if lobby == nil {
-
+		return false, fmt.Errorf("Lobby %s does not exist.", lobbyCode)
 	}
 	player := l.GetPlayer(lobbyCode, id)
 	if player == nil {
 		return false, fmt.Errorf("Player %s does not exist.", id)
 	}
 	player.Ready = !player.Ready
+
+	lobby.mu.Lock()
+	defer lobby.mu.Unlock()
 
 	allReady := true
 	for _, player := range lobby.Players {
@@ -116,6 +129,8 @@ func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, error) {
 			break
 		}
 	}
+
+	lobby.Ready = allReady
 
 	return allReady, nil
 }
