@@ -17,6 +17,7 @@ type Lobby struct {
 	Code     string
 	IsPublic bool
 	Players  map[string]*t.LobbyPlayer
+	Name     string
 
 	// Context
 	ctx  context.Context
@@ -71,7 +72,7 @@ func (l *LobbyManager) DeleteLobby(code string) {
 
 func generateLobbyCode() string {
 	const letters = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789"
-	b := make([]byte, 6)
+	b := make([]byte, 10)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
@@ -110,28 +111,13 @@ func (l *LobbyManager) JoinOrCreateLobby(info t.LobbyInfo, client *t.LobbyPlayer
 	defer l.mu.Unlock()
 
 	var lobby *Lobby
-	var exists bool
 
-	if info.Code == "" {
-		roomCtx, roomCancel := context.WithTimeout(l.ctx, 300*time.Second)
-		newCode := generateLobbyCode()
-		lobby = &Lobby{
-			Owner:    client.PlayerID,
-			Code:     newCode,
-			IsPublic: info.IsPublic,
-			Players:  make(map[string]*t.LobbyPlayer, 0),
-			ctx:      roomCtx,
-			stop:     roomCancel,
-		}
-		l.lobbies[newCode] = lobby
+	lobby, exists := l.lobbies[info.Code]
+	if !exists {
+		return nil, fmt.Errorf("lobby code %s does not exists", info.Code)
 	} else {
-		lobby, exists = l.lobbies[info.Code]
-		if !exists {
-			return nil, fmt.Errorf("lobby code %s does not exists", info.Code)
-		} else {
-			if client.Cancel != nil {
-				client.Cancel()
-			}
+		if client.Cancel != nil {
+			client.Cancel()
 		}
 	}
 
@@ -145,6 +131,28 @@ func (l *LobbyManager) JoinOrCreateLobby(info t.LobbyInfo, client *t.LobbyPlayer
 	lobby.Players[client.PlayerID] = client
 
 	l.playerLobbies[client.PlayerID] = info.Code
+
+	return lobby, nil
+}
+
+func (l *LobbyManager) CreateLobby(info t.LobbyInfo, client *t.LobbyPlayer) (*Lobby, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	roomCtx, roomCancel := context.WithTimeout(l.ctx, 300*time.Second)
+	lobby := &Lobby{
+		Owner:    client.PlayerID,
+		Code:     generateLobbyCode(),
+		IsPublic: info.IsPublic,
+		Players:  make(map[string]*t.LobbyPlayer, 0),
+		ctx:      roomCtx,
+		stop:     roomCancel,
+	}
+
+	lobby.mu.Lock()
+	defer lobby.mu.Unlock()
+
+	lobby.Players[client.PlayerID] = client
 
 	return lobby, nil
 }

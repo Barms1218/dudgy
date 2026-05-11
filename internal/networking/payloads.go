@@ -22,6 +22,7 @@ const (
 	RoomJoined   EnvelopeType = "room_joined"
 	Reconnect    EnvelopeType = "reconnect"
 	PlayerJoined EnvelopeType = "player_joined"
+	CreateLoby   EnvelopeType = "create_lobby"
 	RunStarted   EnvelopeType = "run_started"
 	WorldState   EnvelopeType = "world_state"
 	PlayerLeft   EnvelopeType = "player_left"
@@ -86,9 +87,13 @@ type RunResumedResponse struct {
 }
 
 type JoinLobbyPayload struct {
-	PlayerID    string `json:"id"`
-	RoomCode    string `json:"code"`
-	DisplayName string `json:"name"`
+	PlayerID string `json:"id"`
+	RoomCode string `json:"code"`
+}
+
+type CreateLobbyPayload struct {
+	OwnerID   string `json:"id"`
+	LobbyName string `json:"name"`
 }
 
 type RoomJoinResponse struct {

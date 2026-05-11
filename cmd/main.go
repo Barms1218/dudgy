@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	a "github.com/Barms1218/dudgy/internal/accounts"
 	l "github.com/Barms1218/dudgy/internal/lobbies"
 	n "github.com/Barms1218/dudgy/internal/networking"
 
@@ -23,7 +21,6 @@ type App struct {
 	logger  *slog.Logger
 	l       *l.LobbyManager
 	hub     *n.Hub
-	am      *a.AccountManager
 	funcMap map[n.EnvelopeType]func(id string, payload json.RawMessage) error
 }
 
@@ -52,9 +49,9 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		if err := a.resolveIdentity(ctx, conn, id); err != nil {
-			http.Error(w, "Unable to Resolve User Identity", http.StatusBadRequest)
-			return
+		_, exists := a.hub.Clients[id]
+		if exists {
+			a.hub.Clients[id] = conn
 		}
 
 		registration := &n.Registration{
@@ -89,38 +86,6 @@ func (a *App) identifyUser(idStr string) (string, error) {
 	}
 
 	return id, nil
-}
-
-func (a *App) resolveIdentity(ctx context.Context, conn *websocket.Conn, id string) error {
-	account := a.am.GetOrCreateAccount(id)
-	if account.Name == "" {
-		conn.Write(ctx, websocket.MessageText, []byte("Need username"))
-		nameCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-		defer cancel()
-		_, msg, err := conn.Read(nameCtx)
-		if err != nil {
-			if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
-
-			}
-			return err
-		}
-
-		var envelope n.Envelope
-		if err := json.Unmarshal(msg, &envelope); err != nil {
-			a.logger.Error("Unable to parse name from JSON", "error", err)
-			return err
-		}
-
-		if envelope.Type == n.Register {
-			if err := a.handleRegistration(id, envelope.Payload); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("Invalid request.")
-		}
-	}
-
-	return nil
 }
 
 func (a *App) runSession(ctx context.Context, conn *websocket.Conn, r *n.Registration) {
@@ -204,8 +169,6 @@ func main() {
 	a.funcMap[n.JoinRoom] = a.handleJoinLobby
 	a.funcMap[n.PlayerLeft] = a.handleLeaveLobby
 	a.funcMap[n.UpdateLobby] = a.handleLobbyVisibility
-	a.funcMap[n.Reconnect] = a.handleReconnect
-	a.funcMap[n.Register] = a.handleRegistration
 
 	srv := &http.Server{
 		Addr:    ":8080",

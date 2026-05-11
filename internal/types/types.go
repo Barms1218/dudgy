@@ -63,6 +63,7 @@ type LobbyPlayer struct {
 }
 
 type LobbyInfo struct {
-	Code     string `json:"code"`
-	IsPublic bool   `json:"public"`
+	Code       string `json:"code"`
+	IsPublic   bool   `json:"public"`
+	InviteCode string `json:"invite"`
 }
