@@ -68,6 +68,7 @@ type LobbyPlayer struct {
 	Class    ClassType `json:"class"`
 	Ctx      context.Context
 	Cancel   context.CancelFunc
+	Ready    bool `json:"ready"`
 }
 
 type LobbyInfo struct {

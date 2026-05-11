@@ -14,8 +14,8 @@ func (a *App) handleJoinLobby(id string, payload json.RawMessage) error {
 		return fmt.Errorf("Invalid payload: %w", err)
 	}
 	if joinedLobby.RoomCode != "" {
-		_, exists := a.l.GetLobby(joinedLobby.RoomCode)
-		if !exists {
+		lobby := a.l.GetLobby(joinedLobby.RoomCode)
+		if lobby == nil {
 			return fmt.Errorf("Lobby %s does not exist", joinedLobby.RoomCode)
 		}
 	}
@@ -28,7 +28,7 @@ func (a *App) handleJoinLobby(id string, payload json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	return a.sendToClient(id, n.RoomJoined, json.RawMessage(data))
+	return a.sendToClient(id, n.JoinRoom, json.RawMessage(data))
 }
 
 func (a *App) handleCreateLobby(id string, payload json.RawMessage) error {
@@ -54,7 +54,7 @@ func (a *App) handleCreateLobby(id string, payload json.RawMessage) error {
 		return err
 	}
 
-	return a.sendToClient(id, n.RoomJoined, json.RawMessage(data))
+	return a.sendToClient(id, n.JoinRoom, json.RawMessage(data))
 }
 
 func (a *App) handleClassSelection(id string, payload json.RawMessage) error {
@@ -97,8 +97,8 @@ func (a *App) handleLobbyVisibility(id string, payload json.RawMessage) error {
 		return err
 	}
 
-	lobby, exists := a.l.GetLobby(visibilityToggle.RoomCode)
-	if !exists {
+	lobby := a.l.GetLobby(visibilityToggle.RoomCode)
+	if lobby == nil {
 		return fmt.Errorf("Lobby %s does not exist", visibilityToggle.RoomCode)
 	}
 

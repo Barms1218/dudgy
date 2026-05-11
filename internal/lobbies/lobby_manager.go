@@ -52,11 +52,29 @@ func (l *LobbyManager) CreateLobbies() *Lobby {
 	return lobby
 }
 
-func (l *LobbyManager) GetLobby(code string) (*Lobby, bool) {
+func (l *LobbyManager) GetLobby(code string) *Lobby {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	lobby, ok := l.lobbies[code]
-	return lobby, ok
+	if !ok {
+		return nil
+	}
+
+	return lobby
+}
+
+func (l *LobbyManager) GetPlayer(lobbyCode, id string) *t.LobbyPlayer {
+	lobby := l.GetLobby(lobbyCode)
+
+	lobby.mu.Lock()
+	defer lobby.mu.Unlock()
+	player, exists := lobby.Players[id]
+
+	if !exists {
+		return nil
+	}
+
+	return player
 }
 
 func (l *LobbyManager) PlayerInLobby(id string) bool {
@@ -80,11 +98,33 @@ func generateLobbyCode() string {
 	return string(b)
 }
 
+func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, error) {
+	lobby := l.GetLobby(lobbyCode)
+	if lobby == nil {
+
+	}
+	player := l.GetPlayer(lobbyCode, id)
+	if player == nil {
+		return false, fmt.Errorf("Player %s does not exist.", id)
+	}
+	player.Ready = !player.Ready
+
+	allReady := true
+	for _, player := range lobby.Players {
+		if !player.Ready {
+			allReady = false
+			break
+		}
+	}
+
+	return allReady, nil
+}
+
 func (l *LobbyManager) ToggleLobbyVisibility(roomCode string, isPublic bool) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	lobby, exists := l.GetLobby(roomCode)
-	if !exists {
+	lobby := l.GetLobby(roomCode)
+	if lobby == nil {
 		return fmt.Errorf("Room %s does not exist", roomCode)
 	}
 
@@ -131,9 +171,9 @@ func (l *LobbyManager) CreateLobby(info t.LobbyInfo, client *t.LobbyPlayer) erro
 }
 
 func (l *LobbyManager) RemoveFromLobby(id string) error {
-	lobby, exists := l.GetLobby(l.playerLobbies[id])
-	if !exists {
-		return fmt.Errorf("Lobby %s does not exist", lobby.Code)
+	lobby := l.GetLobby(l.playerLobbies[id])
+	if lobby == nil {
+		return fmt.Errorf("That player is not in any lobbies.")
 	}
 
 	l.mu.Lock()
@@ -148,8 +188,8 @@ func (l *LobbyManager) RemoveFromLobby(id string) error {
 }
 
 func (l *LobbyManager) SelectClass(id, code string, class t.ClassType) error {
-	lobby, exists := l.GetLobby(l.playerLobbies[id])
-	if !exists {
+	lobby := l.GetLobby(l.playerLobbies[id])
+	if lobby == nil {
 		return fmt.Errorf("Lobby %s does not exist.", code)
 	}
 

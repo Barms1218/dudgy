@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -139,13 +140,13 @@ func (a *App) broadcast(roomCode string, msgType n.EnvelopeType, data json.RawMe
 		return err
 	}
 
-	room, exists := a.l.GetLobby(roomCode)
-	if !exists {
-		return err
+	lobby := a.l.GetLobby(roomCode)
+	if lobby == nil {
+		return fmt.Errorf("Lobby %s does not exist", roomCode)
 	}
 
-	ids := make([]string, 0, len(room.Players))
-	for _, player := range room.Players {
+	ids := make([]string, 0, len(lobby.Players))
+	for _, player := range lobby.Players {
 		ids = append(ids, player.PlayerID)
 	}
 	a.hub.Broadcast <- n.BroadCastMessage{Recipients: ids, Payload: out}
@@ -172,7 +173,7 @@ func main() {
 	a := NewApp(logger, l.NewLobbyManager(bgCtx))
 	a.funcMap[n.JoinRoom] = a.handleJoinLobby
 	a.funcMap[n.PlayerLeft] = a.handleLeaveLobby
-	a.funcMap[n.UpdateLobby] = a.handleLobbyVisibility
+	a.funcMap[n.ToggleVisibility] = a.handleLobbyVisibility
 	a.funcMap[n.CreateLobby] = a.handleCreateLobby
 	a.funcMap[n.ClassSelected] = a.handleClassSelection
 
