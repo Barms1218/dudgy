@@ -13,42 +13,82 @@ func (a *App) handleJoinLobby(id string, payload json.RawMessage) error {
 	if err := json.Unmarshal(payload, &joinedLobby); err != nil {
 		return fmt.Errorf("Invalid payload: %w", err)
 	}
-
-	lobbyPlayer := t.LobbyPlayer{
-		Displayname: joinedLobby.DisplayName,
-	}
-
-	var isPublic bool
 	if joinedLobby.RoomCode != "" {
-		lobby, exists := a.l.GetLobby(joinedLobby.RoomCode)
+		_, exists := a.l.GetLobby(joinedLobby.RoomCode)
 		if !exists {
 			return fmt.Errorf("Lobby %s does not exist", joinedLobby.RoomCode)
 		}
-		isPublic = lobby.IsPublic
-	} else {
-		isPublic = false
 	}
 
-	room, err := a.l.JoinOrCreateLobby(t.LobbyInfo{
-		Code:     joinedLobby.RoomCode,
-		IsPublic: isPublic,
-	}, &lobbyPlayer)
+	response := n.RoomJoinResponse{
+		Success: true,
+		Message: "Welcome to the lobby!",
+	}
+	data, err := json.Marshal(&response)
 	if err != nil {
+		return err
+	}
+	return a.sendToClient(id, n.RoomJoined, json.RawMessage(data))
+}
+
+func (a *App) handleCreateLobby(id string, payload json.RawMessage) error {
+	var createdLobby n.CreateLobbyPayload
+	if err := json.Unmarshal(payload, &createdLobby); err != nil {
+		return err
+	}
+
+	if err := a.l.CreateLobby(t.LobbyInfo{
+		IsPublic: createdLobby.IsPublic,
+		OwnerID:  id,
+		Name:     createdLobby.LobbyName,
+	}, &t.LobbyPlayer{PlayerID: id}); err != nil {
 		return err
 	}
 
 	response := n.RoomJoinResponse{
 		Success: true,
-		Message: fmt.Sprintf("Welcome to the dungeon, %s!", lobbyPlayer.Displayname),
+		Message: "Welcome to the lobby!",
 	}
-	data, err := json.Marshal(response)
-	if err := a.sendToClient(id, n.RoomJoined, data); err != nil {
-		return fmt.Errorf("Error handling join room request: %w", err)
+	data, err := json.Marshal(&response)
+	if err != nil {
+		return err
 	}
 
-	a.broadcast(room.Code, string(n.RoomJoined), data)
+	return a.sendToClient(id, n.RoomJoined, json.RawMessage(data))
+}
 
-	return nil
+func (a *App) handleClassSelection(id string, payload json.RawMessage) error {
+	var info n.SelectClassPayload
+	if err := json.Unmarshal(payload, &info); err != nil {
+		return err
+	}
+
+	err := a.l.SelectClass(id, info.Room, t.ClassType(info.Class))
+	if err != nil {
+		msg := n.SelectClassResponse{
+			Success: false,
+			Message: fmt.Sprintf("%s is already claimed.", info.Class),
+		}
+
+		data, err := json.Marshal(&msg)
+		if err != nil {
+			return err
+		}
+
+		return a.sendToClient(id, n.ClassSelected, data)
+	}
+
+	broadcast := n.SelectClassResponse{
+		Message: fmt.Sprintf("%s has been claimed.", info.Class),
+		Success: err == nil,
+	}
+	data, err := json.Marshal(&broadcast)
+	if err != nil {
+		return err
+	}
+
+	return a.broadcast(info.Room, n.ClassSelected, json.RawMessage(data))
+
 }
 
 func (a *App) handleLobbyVisibility(id string, payload json.RawMessage) error {
@@ -66,11 +106,7 @@ func (a *App) handleLobbyVisibility(id string, payload json.RawMessage) error {
 		return fmt.Errorf("User not authorized to change this lobby")
 	}
 
-	if err := a.l.ToggleLobbyVisibility(visibilityToggle.RoomCode, visibilityToggle.IsPublic); err != nil {
-		return err
-	}
-
-	return nil
+	return a.l.ToggleLobbyVisibility(visibilityToggle.RoomCode, visibilityToggle.IsPublic)
 }
 
 func (a *App) handleLeaveLobby(id string, payload json.RawMessage) error {
@@ -79,23 +115,10 @@ func (a *App) handleLeaveLobby(id string, payload json.RawMessage) error {
 		return err
 	}
 
-	code, err := a.l.RemoveFromLobby(disconnected.PlayerID)
+	err := a.l.RemoveFromLobby(disconnected.PlayerID)
 	if err != nil {
 		return err
 	}
-
-	data, err := json.Marshal(payload)
-
-	type broadcast struct {
-		Message string `json:"msg"`
-	}
-
-	message, err := json.Marshal(broadcast{Message: "You have been disconnected."})
-	if err := a.sendToClient(id, n.LeaveRoom, message); err != nil {
-		return fmt.Errorf("Error handling leave lobby request: %w", err)
-	}
-
-	a.broadcast(code, string(n.LeaveRoom), data)
 
 	return nil
 }

@@ -73,16 +73,10 @@ func (a *App) handleWS(ctx context.Context) http.HandlerFunc {
 
 func (a *App) identifyUser(idStr string) (string, error) {
 	var id string
-	var err error
 	if idStr == "" {
 		id = uuid.NewString()
 	} else {
 		id = idStr
-		if err != nil {
-			a.logger.Error("Invalid id", "error", err)
-			return "", err
-		}
-
 	}
 
 	return id, nil
@@ -135,19 +129,19 @@ func (a *App) sendToClient(id string, msgType n.EnvelopeType, data json.RawMessa
 	return a.hub.Clients[id].Write(ctx, websocket.MessageText, out)
 }
 
-func (a *App) broadcast(roomCode, msgType string, data json.RawMessage) {
+func (a *App) broadcast(roomCode string, msgType n.EnvelopeType, data json.RawMessage) error {
 	envelope := n.Envelope{
-		Type:    n.EnvelopeType(msgType),
+		Type:    msgType,
 		Payload: json.RawMessage(data),
 	}
 	out, err := json.Marshal(envelope)
 	if err != nil {
-		return
+		return err
 	}
 
 	room, exists := a.l.GetLobby(roomCode)
 	if !exists {
-		return
+		return err
 	}
 
 	ids := make([]string, 0, len(room.Players))
@@ -155,6 +149,8 @@ func (a *App) broadcast(roomCode, msgType string, data json.RawMessage) {
 		ids = append(ids, player.PlayerID)
 	}
 	a.hub.Broadcast <- n.BroadCastMessage{Recipients: ids, Payload: out}
+
+	return nil
 }
 
 func main() {
@@ -169,6 +165,8 @@ func main() {
 	a.funcMap[n.JoinRoom] = a.handleJoinLobby
 	a.funcMap[n.PlayerLeft] = a.handleLeaveLobby
 	a.funcMap[n.UpdateLobby] = a.handleLobbyVisibility
+	a.funcMap[n.CreateLobby] = a.handleCreateLobby
+	a.funcMap[n.ClassSelected] = a.handleClassSelection
 
 	srv := &http.Server{
 		Addr:    ":8080",

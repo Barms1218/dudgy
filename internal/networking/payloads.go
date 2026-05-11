@@ -14,20 +14,21 @@ type BroadCastMessage struct {
 type EnvelopeType string
 
 const (
-	JoinRoom     EnvelopeType = "joined_room"
-	PlayerInput  EnvelopeType = "player_input"
-	Register     EnvelopeType = "register"
-	UpdateLobby  EnvelopeType = "update_lobby"
-	LeaveRoom    EnvelopeType = "leave_room"
-	RoomJoined   EnvelopeType = "room_joined"
-	Reconnect    EnvelopeType = "reconnect"
-	PlayerJoined EnvelopeType = "player_joined"
-	CreateLoby   EnvelopeType = "create_lobby"
-	RunStarted   EnvelopeType = "run_started"
-	WorldState   EnvelopeType = "world_state"
-	PlayerLeft   EnvelopeType = "player_left"
-	RunResumed   EnvelopeType = "run_resumed"
-	Error        EnvelopeType = "error"
+	JoinRoom      EnvelopeType = "joined_room"
+	PlayerInput   EnvelopeType = "player_input"
+	Register      EnvelopeType = "register"
+	UpdateLobby   EnvelopeType = "update_lobby"
+	LeaveRoom     EnvelopeType = "leave_room"
+	RoomJoined    EnvelopeType = "room_joined"
+	Reconnect     EnvelopeType = "reconnect"
+	ClassSelected EnvelopeType = "class_selected"
+	PlayerJoined  EnvelopeType = "player_joined"
+	CreateLobby   EnvelopeType = "create_lobby"
+	RunStarted    EnvelopeType = "run_started"
+	WorldState    EnvelopeType = "world_state"
+	PlayerLeft    EnvelopeType = "player_left"
+	RunResumed    EnvelopeType = "run_resumed"
+	Error         EnvelopeType = "error"
 )
 
 type Envelope struct {
@@ -94,6 +95,7 @@ type JoinLobbyPayload struct {
 type CreateLobbyPayload struct {
 	OwnerID   string `json:"id"`
 	LobbyName string `json:"name"`
+	IsPublic  bool   `json:"is_public"`
 }
 
 type RoomJoinResponse struct {
@@ -115,4 +117,15 @@ type GenericError struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
 	Error   string `json:"error,omitempty"`
+}
+
+type SelectClassPayload struct {
+	ID    string `json:"id"`
+	Room  string `json:"room"`
+	Class string `json:"class"`
+}
+
+type SelectClassResponse struct {
+	Message string `json:"msg"`
+	Success bool   `json:"success"`
 }

@@ -5,6 +5,14 @@ import (
 	"github.com/coder/websocket"
 )
 
+type ClassType string
+
+const (
+	Tank   ClassType = "tank"
+	DPS    ClassType = "dps"
+	Healer ClassType = "healer"
+)
+
 type Account struct {
 	ID   string
 	Name string
@@ -56,14 +64,15 @@ type GamePlayer struct {
 }
 
 type LobbyPlayer struct {
-	PlayerID    string `json:"player_id"`
-	Displayname string `json:"display_name"`
-	Ctx         context.Context
-	Cancel      context.CancelFunc
+	PlayerID string    `json:"player_id"`
+	Class    ClassType `json:"class"`
+	Ctx      context.Context
+	Cancel   context.CancelFunc
 }
 
 type LobbyInfo struct {
-	Code       string `json:"code"`
-	IsPublic   bool   `json:"public"`
-	InviteCode string `json:"invite"`
+	OwnerID  string `json:"owner"`
+	Code     string `json:"code"`
+	IsPublic bool   `json:"is_public"`
+	Name     string `json:"name"`
 }
