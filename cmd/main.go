@@ -176,6 +176,7 @@ func main() {
 	a.funcMap[n.ToggleVisibility] = a.handleLobbyVisibility
 	a.funcMap[n.CreateLobby] = a.handleCreateLobby
 	a.funcMap[n.ClassSelected] = a.handleClassSelection
+	a.funcMap[n.PlayerReady] = a.handleReadyStateToggle
 
 	srv := &http.Server{
 		Addr:    ":8080",

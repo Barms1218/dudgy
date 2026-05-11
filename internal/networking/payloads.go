@@ -22,6 +22,7 @@ const (
 	ClassSelected    EnvelopeType = "class_selected"
 	CreateLobby      EnvelopeType = "create_lobby"
 	RunStarted       EnvelopeType = "run_started"
+	PlayerReady      EnvelopeType = "player_ready"
 	WorldState       EnvelopeType = "world_state"
 	PlayerLeft       EnvelopeType = "player_left"
 	ToggleVisibility EnvelopeType = "toggle_visilibity"
@@ -126,4 +127,13 @@ type SelectClassPayload struct {
 type SelectClassResponse struct {
 	Message string `json:"msg"`
 	Success bool   `json:"success"`
+}
+
+type ToggleReadyPayload struct {
+	LobbyCode string `json:"code"`
+}
+
+type ToggleReadyResponse struct {
+	Ready   bool   `json:"ready"`
+	Message string `json:"msg"`
 }

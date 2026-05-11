@@ -109,6 +109,34 @@ func (a *App) handleLobbyVisibility(id string, payload json.RawMessage) error {
 	return a.l.ToggleLobbyVisibility(visibilityToggle.RoomCode, visibilityToggle.IsPublic)
 }
 
+func (a *App) handleReadyStateToggle(id string, payload json.RawMessage) error {
+	var readyToggle n.ToggleReadyPayload
+	if err := json.Unmarshal(payload, &readyToggle); err != nil {
+		return err
+	}
+
+	ready, err := a.l.ToggleReadyState(readyToggle.LobbyCode, id)
+	if err != nil {
+		return err
+	}
+
+	if !ready {
+		return nil
+	}
+
+	response := n.ToggleReadyResponse{
+		Ready:   true,
+		Message: "All players ready. Beginning countdown...",
+	}
+	data, err := json.Marshal(&response)
+	if err != nil {
+		return err
+	}
+
+	return a.broadcast(readyToggle.LobbyCode, n.PlayerReady, data)
+
+}
+
 func (a *App) handleLeaveLobby(id string, payload json.RawMessage) error {
 	var disconnected n.PlayerLeftPayload
 	if err := json.Unmarshal(payload, &disconnected); err != nil {
