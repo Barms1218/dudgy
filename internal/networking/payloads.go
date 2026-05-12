@@ -54,9 +54,8 @@ type RunStartedPayload struct {
 }
 
 type WorldStatePayload struct {
-	Tick    int32          `json:"tick"`
-	Players []t.GamePlayer `json:"players"`
-	Enemies []t.Enemy      `json:"enemies"`
+	Tick     int32      `json:"tick"`
+	Entities []t.Entity `json:"entities"`
 }
 
 type PlayerLeftPayload struct {

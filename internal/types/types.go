@@ -2,7 +2,8 @@ package types
 
 import (
 	"context"
-	"github.com/coder/websocket"
+	"sync"
+	"time"
 )
 
 type ClassType string
@@ -13,29 +14,65 @@ const (
 	Healer ClassType = "healer"
 )
 
-type Account struct {
-	ID   string
-	Name string
+type AbilityType string
+
+const (
+	Auto   AbilityType = "auto"
+	Melee  AbilityType = "aoe"
+	Ranged AbilityType = "ranged"
+)
+
+type AbilityShape string
+
+const (
+	Circle    AbilityShape = "circle"
+	Rectangle AbilityShape = "rectangle"
+	Line      AbilityShape = "line"
+)
+
+type EffectType string
+
+const (
+	Heal  EffectType = "heal"
+	Stun  EffectType = "stun"
+	Bleed EffectType = "bleed"
+	Burn  EffectType = "burn"
+)
+
+type Effect struct {
+	ID        string     `json:"id"`
+	Type      EffectType `json:"type"`
+	Damage    int16      `json:"damage"`
+	Start     time.Time  `json:"start"`
+	ExpiresAt time.Time  `json:"end"`
 }
 
-type GamePlayer struct {
-	PlayerID string    `json:"id"`
-	Class    ClassType `json:"class"`
-	Position Position  `json:"pos"`
-	Velocity Velocity  `json:"vel"`
-	Health   int16     `json:"hp"`
+type Ability struct {
+	Name       string            `json:"name"`
+	Type       AbilityType       `json:"type"`
+	Damage     int16             `json:"damage"`
+	TickDamage int16             `json:"tick_damage"`
+	Shape      AbilityShape      `json:"shape"`
+	Dimensions AbilityDimensions `json:"dimensions"`
+	Duration   float32           `json:"duration"`
 }
 
-type Enemy struct {
-	EnemyID string   `json:"id"`
-	Pos     Position `json:"pos"`
-	Health  int8     `json:"hp"`
+type AbilityDimensions struct {
+	Height float32 `json:"height,omitempty"`
+	Width  float32 `json:"width,omitempty"`
+	Radius float32 `json:"radius,omitempty"`
 }
 
-type Player struct {
-	PlayerID string          `json:"id"`
-	Name     string          `json:"name"`
-	Conn     *websocket.Conn `json:"conn"`
+type Entity struct {
+	ID        string            `json:"id"`
+	TeamID    string            `json:"team_id"`
+	Class     ClassType         `json:"class"`
+	Abilities []Ability         `json:"abilities"`
+	Effects   map[string]Effect `json:"effects"`
+	Position  Position          `json:"pos"`
+	Velocity  Velocity          `json:"vel"`
+	Health    int16             `json:"hp"`
+	Mu        sync.Mutex
 }
 
 type Map struct {

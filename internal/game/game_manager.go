@@ -9,31 +9,23 @@ import (
 	"github.com/google/uuid"
 )
 
-type Game struct {
-	id             string
-	players        map[string]*t.GamePlayer
-	startPositions map[t.ClassType]t.Position
-	checkpoints    []t.Position
-	ctx            context.Context
-	cancel         context.CancelFunc
-	gameMap        t.Map
-	mu             sync.Mutex
-}
-
 func (g *GameManager) CreateGame(ctx context.Context, players map[string]t.ClassType) *Game {
 	gameCtx, gameCancel := context.WithTimeout(ctx, 60*time.Second)
 	genMap, mapMiddle := GenerateMap(25, 25, 400)
 	game := &Game{
-		id:      uuid.NewString(),
-		players: make(map[string]*t.GamePlayer, len(players)),
-		ctx:     gameCtx,
-		cancel:  gameCancel,
-		gameMap: genMap,
+		id:        uuid.NewString(),
+		entities:  make(map[string]*t.Entity),
+		ctx:       gameCtx,
+		cancel:    gameCancel,
+		playersID: uuid.NewString(),
+		enemiesID: uuid.NewString(),
+		gameMap:   genMap,
 	}
 	game.mu.Lock()
 	for id, class := range players {
-		game.players[id] = &t.GamePlayer{
-			PlayerID: id,
+		game.entities[id] = &t.Entity{
+			ID:       id,
+			TeamID:   game.playersID,
 			Class:    class,
 			Health:   100,
 			Position: mapMiddle,
