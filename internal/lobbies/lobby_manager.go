@@ -73,20 +73,6 @@ func (l *LobbyManager) GetLobby(code string) *Lobby {
 	return lobby
 }
 
-func (l *LobbyManager) GetPlayer(lobbyCode, id string) *t.LobbyPlayer {
-	lobby := l.GetLobby(lobbyCode)
-
-	lobby.mu.Lock()
-	defer lobby.mu.Unlock()
-	player, exists := lobby.Players[id]
-
-	if !exists {
-		return nil
-	}
-
-	return player
-}
-
 func (l *LobbyManager) PlayerInLobby(id string) bool {
 	_, exists := l.playerLobbies[id]
 	return exists
@@ -108,19 +94,26 @@ func generateLobbyCode() string {
 	return string(b)
 }
 
-func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, error) {
-	lobby := l.GetLobby(lobbyCode)
-	if lobby == nil {
-		return false, fmt.Errorf("Lobby %s does not exist.", lobbyCode)
+func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, bool, error) {
+	l.mu.Lock()
+
+	lobby, exists := l.lobbies[lobbyCode]
+	if !exists {
+		return false, false, fmt.Errorf("Lobby %s does not exist.", lobbyCode)
 	}
-	player := l.GetPlayer(lobbyCode, id)
-	if player == nil {
-		return false, fmt.Errorf("Player %s does not exist.", id)
-	}
-	player.Ready = !player.Ready
+
+	l.mu.Unlock()
 
 	lobby.mu.Lock()
 	defer lobby.mu.Unlock()
+
+	player, exists := lobby.Players[id]
+	if !exists {
+		return false, false, fmt.Errorf("Player %s does not exist.", id)
+	}
+	player.Ready = !player.Ready
+
+	wasReady := lobby.Ready
 
 	allReady := true
 	for _, player := range lobby.Players {
@@ -130,9 +123,28 @@ func (l *LobbyManager) ToggleReadyState(lobbyCode, id string) (bool, error) {
 		}
 	}
 
-	lobby.Ready = allReady
+	allHaveClasses, err := l.classesSelected(lobby)
+	if err != nil {
+		lobby.Ready = false
+		return wasReady, lobby.Ready, fmt.Errorf("Error occurred during ready check")
+	}
+	lobby.Ready = allReady && allHaveClasses
 
-	return allReady, nil
+	return wasReady, lobby.Ready, nil
+}
+
+func (l *LobbyManager) ToggleLobbyReadState(lobbyCode string) (bool, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	lobby, exists := l.lobbies[lobbyCode]
+	if !exists {
+		return false, fmt.Errorf("Lobby %s does not exist.", lobbyCode)
+	}
+
+	lobby.Ready = !lobby.Ready
+
+	return lobby.Ready, nil
 }
 
 func (l *LobbyManager) ToggleLobbyVisibility(roomCode string, isPublic bool) error {
@@ -148,9 +160,21 @@ func (l *LobbyManager) ToggleLobbyVisibility(roomCode string, isPublic bool) err
 	return nil
 }
 
+func (l *LobbyManager) classesSelected(lobby *Lobby) (bool, error) {
+	allSelected := true
+	for _, player := range lobby.Players {
+		if player.Class == "" {
+			allSelected = false
+			break
+		}
+	}
+
+	return allSelected, nil
+}
+
 func (l *LobbyManager) GetPublicLobbies() []string {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	var public []string
 	for code, lobby := range l.lobbies {
