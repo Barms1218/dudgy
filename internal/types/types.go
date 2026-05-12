@@ -18,10 +18,12 @@ type Account struct {
 	Name string
 }
 
-type Avatar struct {
-	AccountID string   `json:"id"`
-	Position  Position `json:"pos"`
-	Velocity  Velocity `json:"vel"`
+type GamePlayer struct {
+	PlayerID string    `json:"id"`
+	Class    ClassType `json:"class"`
+	Position Position  `json:"pos"`
+	Velocity Velocity  `json:"vel"`
+	Health   int16     `json:"hp"`
 }
 
 type Enemy struct {
@@ -55,12 +57,6 @@ type Position struct {
 type Velocity struct {
 	X float32 `json:"x"`
 	Y float32 `json:"y"`
-}
-
-type GamePlayer struct {
-	PlayerID string   `json:"id"`
-	Pos      Position `json:"pos"`
-	Health   int8     `json:"hp"`
 }
 
 type LobbyPlayer struct {

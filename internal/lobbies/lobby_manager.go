@@ -50,18 +50,6 @@ func (l *LobbyManager) IsLobbyReady(lobbyCode string) bool {
 	return lobby.Ready
 }
 
-func (l *LobbyManager) CreateLobbies() *Lobby {
-	code := generateLobbyCode()
-	lobby := &Lobby{
-		Code:    code,
-		Players: make(map[string]*t.LobbyPlayer, 0),
-	}
-	l.mu.Lock()
-	l.lobbies[code] = lobby
-	l.mu.Unlock()
-	return lobby
-}
-
 func (l *LobbyManager) GetLobby(code string) *Lobby {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
